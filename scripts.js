@@ -1,59 +1,113 @@
+// Declared Variables - CONSTANTS
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 const updateInterval = 100; // Update every 100 milliseconds
-let hasArrived = false; // Flag to track if the spaceship has arrived
+const baseSpeed = 0.01; // Adjust based on your base speed for rotation and orbits
+const speedSlider = document.getElementById('speedSlider');
+const speedValue = document.getElementById('speedValue');
+const maxSpeedMultiplier = 5;
+const minSpeedMultiplier = 0.1;
 
+// Declared Variables - LETs
+let hasArrived = false; // Flag to track if the spaceship has arrived
+let isPlaying = true;
+let speedMultiplier = 1.0; // initial speed multiplier
 let targetPosition = null;
 let pickResult = null;
 let currentLitPlanet = null;
 let planetLight = null;
 let intervalId = null;
+let celestialBodies = []; // Define celestialBodies array
+let moons = [];
+let sun; // Declare sun globally
+let elapsedTime = 0; // Global time variable
+let baseTime = Date.now();
 
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
 
+    // Enable collision detection
+    scene.collisionsEnabled = true;
+
     // Camera
     const camera = new BABYLON.ArcRotateCamera("camera1", Math.PI / 2, Math.PI / 4, 30, BABYLON.Vector3.Zero(), scene);
     camera.attachControl(canvas, true);
-    camera.upperRadiusLimit = 120;
+    camera.upperRadiusLimit = 180;
     camera.lowerRadiusLimit = 5;
     camera.lowerBetaLimit = 0.1;
     camera.upperBetaLimit = Math.PI / 2 - 0.1;
     camera.radius = camera.upperRadiusLimit; // Start zoomed out
+    camera.attachControl(canvas, true, false, false); // Disable right-click drag behavior
+    camera.checkCollisions = true; // Enable collision detection for camera
 
     // Light
     const light = new BABYLON.PointLight("light", new BABYLON.Vector3(0, 0, 0), scene);
     light.intensity = 3;
 
     // Sun
-    const sun = BABYLON.MeshBuilder.CreateSphere("sun", { diameter: 10 }, scene);
+    sun = BABYLON.MeshBuilder.CreateSphere("sun", { diameter: 20 }, scene);
     const sunMaterial = new BABYLON.StandardMaterial("sunMaterial", scene);
     sunMaterial.emissiveTexture = new BABYLON.Texture("https://raw.githubusercontent.com/razvanpf/Images/main/2ksun.jpg", scene);
     sunMaterial.disableLighting = true;
     sun.material = sunMaterial;
     sun.position = new BABYLON.Vector3(0, 0, 0);
+    sun.checkCollisions = true; // Enable collision detection for the sun
 
     // Glow Layer
     const glowLayer = new BABYLON.GlowLayer("glow", scene);
     glowLayer.intensity = 1.5;
     glowLayer.addIncludedOnlyMesh(sun);
 
+    // Add an invisible mesh around the Sun to extend the clickable area (smaller size for closer interactions)
+    const invisibleSun = BABYLON.MeshBuilder.CreateSphere("invisibleSun", { diameter: 21 }, scene); // Adjust diameter as needed
+    invisibleSun.visibility = 0; // Make it invisible
+    invisibleSun.position = sun.position; // Ensure it is at the same position as the sun
 
-    // Add outline on hover for the sun
-    sun.actionManager = new BABYLON.ActionManager(scene);
-    sun.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, function () {
+    // Add action managers to the invisibleSun for interaction
+    invisibleSun.actionManager = new BABYLON.ActionManager(scene);
+    invisibleSun.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, function () {
         sun.renderOutline = true;
         sun.outlineWidth = 0.1;
         sun.outlineColor = BABYLON.Color3.White();
     }));
-    sun.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, function () {
+    invisibleSun.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, function () {
         sun.renderOutline = false;
     }));
+    invisibleSun.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, function () {
+        moveToTarget(sun.position, () => {
+            camera.setTarget(sun.position);
+            showPopup(sun);
+        });
+    }));
+
+    // Function to move the ship to the target position
+    function moveToTarget(targetPos, arrivalCallback) {
+        targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
+        onArrivalCallback = arrivalCallback;
+        scene.registerBeforeRender(moveShip);
+    }
+
+    function moveShip() {
+        if (targetPosition) {
+            const direction = targetPosition.subtract(spaceship.position).normalize();
+            spaceship.position.addInPlace(direction.scale(0.1)); // Adjust the speed as needed
+
+            if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1) {
+                scene.unregisterBeforeRender(moveShip); // Stop moving the ship
+                targetPosition = null;
+                if (onArrivalCallback) {
+                    onArrivalCallback(); // Trigger the callback on arrival
+                    onArrivalCallback = null; // Clear the callback to avoid repeated calls
+                }
+            }
+        }
+    }
 
     // Sun Rotation
     scene.registerBeforeRender(() => {
-        sun.rotation.y += 0.001;
+        sun.rotation.y += baseSpeed * 0.1; // Slow down initial rotation speed
     });
+
 
     // Planets and Moons Data
     const celestialData = [
@@ -80,7 +134,7 @@ const createScene = function () {
             distance: 40, 
             orbitSpeed: 0.006, 
             moons: [
-                { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2kmoon.jpg" }
+                { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Moon3D.jpg" }
             ] 
         },
         { 
@@ -90,21 +144,21 @@ const createScene = function () {
             distance: 50, 
             orbitSpeed: 0.005, 
             moons: [
-                { name: "Phobos", size: 0.1, distance: 2, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2kphobos.jpg" },
-                { name: "Deimos", size: 0.1, distance: 3, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2kdeimos.jpg" }
+                { name: "Phobos", size: 0.1, distance: 2, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Phobos3D.jpg" },
+                { name: "Deimos", size: 0.1, distance: 3, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Deimos3D.jpg" }
             ] 
         },
         { 
             name: "Jupiter", 
             texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2k_jupiter.jpg", 
-            size: 2, 
+            size: 2.2, 
             distance: 70, 
             orbitSpeed: 0.004, 
             moons: [
-                { name: "Io", size: 0.3, distance: 4, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2kio.jpg" },
-                { name: "Europa", size: 0.3, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2keuropa.jpg" },
-                { name: "Ganymede", size: 0.3, distance: 6, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2kganymede.jpg" },
-                { name: "Callisto", size: 0.3, distance: 7, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2kcallisto.jpg" }
+                { name: "Io", size: 0.3, distance: 4, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/IO3D.jpg" },
+                { name: "Europa", size: 0.3, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Europa3D.jpg" },
+                { name: "Ganymede", size: 0.3, distance: 6, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Ganymede.jpg" },
+                { name: "Callisto", size: 0.3, distance: 7, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Callisto3D.jpg" }
             ] 
         },
         { 
@@ -114,7 +168,7 @@ const createScene = function () {
             distance: 90, 
             orbitSpeed: 0.003, 
             moons: [
-                { name: "Titan", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2ktitan.jpg" }
+                { name: "Titan", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titan3D.jpg" }
             ] 
         },
         { 
@@ -123,7 +177,11 @@ const createScene = function () {
             size: 1.5, 
             distance: 110, 
             orbitSpeed: 0.002, 
-            moons: [] 
+            moons: [
+                { name: "Titania", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titania3D.jpg" },
+                { name: "Oberon", size: 0.4, distance: 7, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Oberon3Dv2.jpg" },
+                { name: "Miranda", size: 0.3, distance: 4, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Miranda3D.jpg" }
+            ] 
         },
         { 
             name: "Neptune", 
@@ -132,13 +190,14 @@ const createScene = function () {
             distance: 130, 
             orbitSpeed: 0.001, 
             moons: [
-                { name: "Triton", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/2ktriton.jpg" }
+                { name: "Triton", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Triton3D.jpg" }
             ] 
         }
     ];
+
     const createRings = (scene) => {
         celestialData.forEach((data, index) => {
-            //Create orbit ring with higher tessellation
+            // Create orbit ring with higher tessellation
             const orbit = BABYLON.MeshBuilder.CreateTorus(`orbit${index}`, { diameter: data.distance * 2, thickness: 0.05, tessellation: 128 }, scene);
             const orbitMaterial = new BABYLON.StandardMaterial(`orbitMaterial${index}`, scene);
             orbitMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1);
@@ -147,44 +206,33 @@ const createScene = function () {
             orbit.material = orbitMaterial;
         });
     };
-    
-
-    const celestialBodies = [];
-    const moons = [];
 
     celestialData.forEach((data, index) => {
-        // Create orbit ring
-        //const orbit = BABYLON.MeshBuilder.CreateTorus(`orbit${index}`, { diameter: data.distance * 2, thickness: 0.05 }, scene);
-        //const orbitMaterial = new BABYLON.StandardMaterial(`orbitMaterial${index}`, scene);
-        //orbitMaterial.diffuseColor = BABYLON.Color3.White();
-        //orbitMaterial.emissiveColor = BABYLON.Color3.White();
-        //orbit.material = orbitMaterial;
-
         // Create planet
-        const planet = BABYLON.MeshBuilder.CreateSphere(`planet${index}`, { diameter: data.size }, scene);
+        const planet = BABYLON.MeshBuilder.CreateSphere(`planet${index}`, { diameter: data.size * 2 }, scene);
         const planetMaterial = new BABYLON.StandardMaterial(`planetMaterial${index}`, scene);
         planetMaterial.diffuseTexture = new BABYLON.Texture(data.texture, scene);
         planet.material = planetMaterial;
         planetMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
+        planet.position = new BABYLON.Vector3(data.distance, 0, 0);
+        celestialBodies.push({ mesh: planet, data, angle: 0 });
 
         // Create rings
         createRings(scene);
 
         // Set initial position of the planet
         planet.position = new BABYLON.Vector3(data.distance, 0, 0);
-        celestialBodies.push({ mesh: planet, data });
-        
+        celestialBodies.push({ mesh: planet, data, angle: 0 });
 
-        // Set initial position of the planet
-        planet.position = new BABYLON.Vector3(data.distance, 0, 0);
-        celestialBodies.push({ mesh: planet, data });
+        // Flip the planet upside down
+        planet.rotation.x = Math.PI; // Flipping the planet
 
         // Create rings around Saturn
         const createSaturnRings = (scene, planet) => {
             const ringSettings = [
-                { innerDiameter: planet.scaling.x * 2.8, outerDiameter: planet.scaling.x * 3.2, opacity: 0.4, tessellation: 128 },
-                { innerDiameter: planet.scaling.x * 3.2, outerDiameter: planet.scaling.x * 3.5, opacity: 0.3, tessellation: 128 },
-                { innerDiameter: planet.scaling.x * 3.5, outerDiameter: planet.scaling.x * 4, opacity: 0.3, tessellation: 128 }
+                { innerDiameter: planet.scaling.x * 5.6, outerDiameter: planet.scaling.x * 6.4, opacity: 0.4, tessellation: 128 },
+                { innerDiameter: planet.scaling.x * 6.4, outerDiameter: planet.scaling.x * 7, opacity: 0.3, tessellation: 128 },
+                { innerDiameter: planet.scaling.x * 7, outerDiameter: planet.scaling.x * 8, opacity: 0.3, tessellation: 128 }
             ];
         
             ringSettings.forEach((settings, index) => {
@@ -210,12 +258,6 @@ const createScene = function () {
                 ring.position.y = planet.position.y; // Align with the planet's position
         
                 ring.parent = planet; // Attach the ring to Saturn
-        
-                // Debug statements
-                console.log(`Created ring ${index} with inner diameter ${settings.innerDiameter}, outer diameter ${settings.outerDiameter}, and opacity ${settings.opacity}`);
-                console.log(`Ring ${index} rotation: ${ring.rotation.toString()}`);
-                console.log(`Ring ${index} parent position: ${ring.parent.position.toString()}`);
-                console.log(`Ring ${index} scale: ${ring.scaling.toString()}`);
             });
         };
         
@@ -240,19 +282,21 @@ const createScene = function () {
 
         // Planet Rotation
         scene.registerBeforeRender(() => {
-            planet.rotation.y += 0.001;
+            planet.rotation.y += baseSpeed * 0.1; // Slow down initial rotation speed
         });
 
         data.moons.forEach((moonData, moonIndex) => {
-            const moon = BABYLON.MeshBuilder.CreateSphere(`moon${index}_${moonIndex}`, { diameter: moonData.size }, scene);
+            const moon = BABYLON.MeshBuilder.CreateSphere(`moon${index}_${moonIndex}`, { diameter: moonData.size * 2 }, scene);
             const moonMaterial = new BABYLON.StandardMaterial(`moonMaterial${index}_${moonIndex}`, scene);
             moonMaterial.diffuseTexture = new BABYLON.Texture(moonData.texture, scene);
             moon.material = moonMaterial;
             moonMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
+            moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
+            moons.push({ mesh: moon, data: moonData, parent: planet, angle: 0 });
     
             // Set initial position of the moon
             moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
-            moons.push({ mesh: moon, data: moonData, parent: planet });
+            moons.push({ mesh: moon, data: moonData, parent: planet, angle: 0 });
     
             // Add outline on hover for moons
             moon.actionManager = new BABYLON.ActionManager(scene);
@@ -267,18 +311,18 @@ const createScene = function () {
     
             // Moon Rotation
             scene.registerBeforeRender(() => {
-                moon.rotation.y += 0.001;
+                moon.rotation.y += baseSpeed * 0.1; // Slow down initial rotation speed
             });
         });
     });
 
     // Animate planets around the sun
     scene.registerBeforeRender(function () {
-        const deltaTime = engine.getDeltaTime() * 0.0001;
+        const deltaTime = engine.getDeltaTime() * 0.0001 * speedMultiplier; // Add speedMultiplier
         celestialBodies.forEach((body) => {
             const distance = body.data.distance;
             const speed = 0.001 / distance; // Adjust speed based on distance
-            const angle = (Date.now() * speed) % (2 * Math.PI);
+            const angle = -(Date.now() * speed * speedMultiplier) % (2 * Math.PI); // Clockwise orbit with speedMultiplier
             body.mesh.position.x = distance * Math.cos(angle);
             body.mesh.position.z = distance * Math.sin(angle);
         });
@@ -287,7 +331,7 @@ const createScene = function () {
         moons.forEach((moon) => {
             const distance = moon.data.distance;
             const speed = 0.001 / distance; // Adjust speed based on distance
-            const angle = (Date.now() * speed) % (2 * Math.PI);
+            const angle = -(Date.now() * speed * speedMultiplier) % (2 * Math.PI); // Clockwise orbit with speedMultiplier
             moon.mesh.position.x = moon.parent.position.x + distance * Math.cos(angle);
             moon.mesh.position.z = moon.parent.position.z + distance * Math.sin(angle);
         });
@@ -299,16 +343,23 @@ const createScene = function () {
         spaceship = meshes[0];
         spaceship.scaling = new BABYLON.Vector3(1, 1, 1); // Slightly bigger
         spaceship.position = new BABYLON.Vector3(0, -15, 0);
+        // Set the initial position of the spaceship
+        const initialX = 15; // Move it to the left of the sun
+        const initialY = 0;    // Align with the orbit plane
+        const initialZ = 0;    // Same plane as the orbit rings
+        spaceship.checkCollisions = true; // Enable collision detection for the spaceship
+        spaceship.ellipsoid = new BABYLON.Vector3(1, 1, 1);
+        spaceship.ellipsoidOffset = new BABYLON.Vector3(0, 1, 0);
 
-        // Ship light
-        const shipLight = new BABYLON.PointLight("shipLight", spaceship.position, scene);
-        shipLight.intensity = 0; // Disable the ship light
+        spaceship.position = new BABYLON.Vector3(initialX, initialY, initialZ);
+
+        // Create a light and attach it to the spaceship
+        const shipLight = new BABYLON.PointLight("shipLight", new BABYLON.Vector3(0, 5, 0), scene);
+        shipLight.intensity = 2; // Adjust the intensity to make the spaceship visible
         shipLight.parent = spaceship;
 
-        // Make the ship emissive
-        const shipMaterial = new BABYLON.StandardMaterial("shipMaterial", scene);
-        shipMaterial.emissiveColor = new BABYLON.Color3(0, 0, 1);
-        spaceship.material = shipMaterial;
+        // Ensure the light is positioned slightly above the spaceship
+        shipLight.position = new BABYLON.Vector3(0, 5, 0); // 5 units above the spaceship
 
         // Fiery Trail
         const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
@@ -345,83 +396,139 @@ const createScene = function () {
 
         particleSystem.start();
 
-        // Event listener for canvas click
+    // Event listener for canvas click
+    let isDragging = false;
+    let mouseDown = false;
+    let lastPickedMesh = null; // Store the last picked mesh
 
-        canvas.addEventListener("click", function (evt) {
-            pickResult = scene.pick(evt.clientX, evt.clientY);
-            console.log("Pick result:", pickResult); // Debugging log
-            if (pickResult.hit) {
-                targetPosition = pickResult.pickedPoint;
-                console.log("Target position set to:", targetPosition); // Debugging log
-                spaceship.lookAt(targetPosition);
-                particleSystem.start();
-        
-                // Reset the hasArrived flag
-                hasArrived = false;
-        
-                // Zoom out without smooth transition
-                camera.radius += 20;
-        
-                // Check if the target is a planet or moon
-                if (pickResult.pickedMesh && (pickResult.pickedMesh.name.startsWith("planet") || pickResult.pickedMesh.name.startsWith("moon"))) {
-                    startUpdatingTargetPosition(pickResult.pickedMesh);
-                } else {
-                    stopUpdatingTargetPosition();
-                }
+    canvas.addEventListener("mousedown", function (evt) {
+        mouseDown = true;
+        isDragging = false;
+    });
+
+    canvas.addEventListener("mousemove", function (evt) {
+        if (mouseDown) {
+            isDragging = true;
+        }
+    });
+
+    canvas.addEventListener("mouseup", function (evt) {
+        mouseDown = false;
+        if (!isDragging) {
+            handleCanvasClick(evt);
+        }
+        isDragging = false;
+    });
+
+        function handleCanvasClick(evt) {
+        pickResult = scene.pick(evt.clientX, evt.clientY);
+        if (pickResult.hit && pickResult.pickedMesh) {
+            targetPosition = pickResult.pickedPoint;
+            console.log("Target position set to:", targetPosition); // Debugging log
+            spaceship.lookAt(targetPosition);
+            particleSystem.start();
+
+            // Detach the ship from the planet when a new target is selected
+            detachShipFromPlanet(spaceship);
+
+            // Reset the hasArrived flag
+            hasArrived = false;
+
+            // Zoom out without smooth transition
+            camera.radius += 20;
+
+            // Check if the target is a planet, moon, or sun
+            if (pickResult.pickedMesh.name.startsWith("planet") || pickResult.pickedMesh.name.startsWith("moon") || pickResult.pickedMesh.name === "sun") {
+                lastPickedMesh = pickResult.pickedMesh; // Store the last picked mesh
+                startUpdatingTargetPosition(pickResult.pickedMesh);
             } else {
-                const pickInfo = scene.pick(evt.clientX, evt.clientY);
-                console.log("Pick info:", pickInfo); // Debugging log
-                if (pickInfo.hit) {
-                    targetPosition = pickInfo.pickedPoint;
-                    console.log("Target position set to:", targetPosition); // Debugging log
-                    spaceship.lookAt(targetPosition);
-                    particleSystem.start();
+                stopUpdatingTargetPosition();
+            }
+        }
+    }
+
+            // This click event ensures that handleCanvasClick is only called if there was no dragging
+            canvas.addEventListener("click", function (evt) {
+                if (!isDragging) {
+                    handleCanvasClick(evt);
+                }
+            });
         
-                    // Reset the hasArrived flag
-                    hasArrived = false;
-        
-                    // Zoom out without smooth transition
-                    camera.radius += 20;
-        
-                    // Check if the target is a planet or moon
-                    if (pickInfo.pickedMesh && (pickInfo.pickedMesh.name.startsWith("planet") || pickInfo.pickedMesh.name.startsWith("moon"))) {
-                        startUpdatingTargetPosition(pickInfo.pickedMesh);
-                    } else {
-                        stopUpdatingTargetPosition();
-                    }
+            // Function to handle arrival and trigger popup
+            function onArrival() {
+                if (lastPickedMesh) {
+                    camera.setTarget(lastPickedMesh.position);
+                    showPopup(lastPickedMesh);
+                    lastPickedMesh = null; // Clear the last picked mesh after triggering the popup
                 }
             }
-        });
+
+        
+            // Update your moveToTarget function to use onArrival callback
+            function moveToTarget(targetPosition, onArrivalCallback) {
+                targetPosition = targetPosition.clone(); // Clone to avoid modifying the original target position
+                scene.registerBeforeRender(function moveShip() {
+                    const direction = targetPosition.subtract(spaceship.position).normalize();
+                    spaceship.position.addInPlace(direction.scale(0.1)); // Adjust the speed as needed
+
+                    if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1) {
+                        scene.unregisterBeforeRender(moveShip); // Stop moving the ship
+                        if (onArrivalCallback) {
+                            onArrivalCallback(); // Trigger the callback on arrival
+                        }
+                    }
+                });
+            }
+        // Attach Ship function
+        function attachShipToPlanet(ship, planet) {
+            ship.parent = planet;
+            ship.position = BABYLON.Vector3.Zero(); // Reset the ship's position relative to the planet
+            console.log(`Ship attached to ${planet.name}`);
+        }
+
+        // Detach ship function
+        function detachShipFromPlanet(ship) {
+            if (ship.parent) {
+                const worldMatrix = ship.getWorldMatrix();
+                const worldPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), worldMatrix);
+                ship.parent = null;
+                ship.position = worldPosition;
+            }
+            console.log("Ship detached from planet");
+        }
+              
 
         // Function to handle spaceship movement and camera focus
         scene.registerBeforeRender(function () {
             if (targetPosition) {
                 const direction = targetPosition.subtract(spaceship.position).normalize();
-                spaceship.position.addInPlace(direction.scale(0.1));
+                spaceship.moveWithCollisions(direction.scale(0.1));
                 if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1 && !hasArrived) {
                     stopUpdatingTargetPosition();
                     targetPosition = null;
                     particleSystem.stop();
                     hasArrived = true; // Set the flag to indicate arrival
-                    if (pickResult && pickResult.pickedMesh && pickResult.pickedMesh.name.startsWith("planet")) {
+                    if (lastPickedMesh && lastPickedMesh.name.startsWith("planet")) {
+                        attachShipToPlanet(spaceship, lastPickedMesh);
                         setTimeout(() => {
-                            camera.setTarget(pickResult.pickedMesh.position); // Set camera focus to the planet
-                            console.log(`Arrived at planet: ${pickResult.pickedMesh.name}`); // debug
-                            lightUpPlanet(pickResult.pickedMesh); // Light up the planet
-                            showPopup(pickResult.pickedMesh);
+                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the planet
+                            console.log(`Arrived at planet: ${lastPickedMesh.name}`); // debug
+                            lightUpPlanet(lastPickedMesh); // Light up the planet
+                            showPopup(lastPickedMesh);
                         }, 1000); // Add a delay before focusing on the planet
-                    } else if (pickResult && pickResult.pickedMesh && pickResult.pickedMesh.name.startsWith("moon")) {
+                    } else if (lastPickedMesh && lastPickedMesh.name.startsWith("moon")) {
                         setTimeout(() => {
-                            camera.setTarget(pickResult.pickedMesh.position); // Set camera focus to the moon
-                            console.log(`Arrived at moon: ${pickResult.pickedMesh.name}`); // debug
-                            lightUpPlanet(pickResult.pickedMesh); // Light up the moon
-                            showPopup(pickResult.pickedMesh);
+                            attachShipToPlanet(spaceship, lastPickedMesh);
+                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the moon
+                            console.log(`Arrived at moon: ${lastPickedMesh.name}`); // debug
+                            lightUpPlanet(lastPickedMesh); // Light up the moon
+                            showPopup(lastPickedMesh);
                         }, 1000); // Add a delay before focusing on the moon
-                    } else if (pickResult && pickResult.pickedMesh && pickResult.pickedMesh.name === "sun") {
+                    } else if (lastPickedMesh && lastPickedMesh.name === "sun") {
                         setTimeout(() => {
-                            camera.setTarget(pickResult.pickedMesh.position); // Set camera focus to the sun
-                            lightUpPlanet(pickResult.pickedMesh); // Light up the sun
-                            showPopup(pickResult.pickedMesh);
+                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the sun
+                            lightUpPlanet(lastPickedMesh); // Light up the sun
+                            showPopup(lastPickedMesh);
                         }, 1000); // Add a delay before focusing on the sun
                     } else {
                         // Reset camera to sun if empty space is clicked
@@ -573,47 +680,62 @@ const createScene = function () {
             "Moon": {
                 name: "Moon",
                 description: "The Moon is Earth's only natural satellite. It is the fifth largest satellite in the Solar System, and by far the largest among planetary satellites relative to the size of the planet that it orbits.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Moon2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Moon2D.png"
             },
             "Phobos": {
                 name: "Phobos",
                 description: "Phobos is the innermost and larger of the two natural satellites of Mars. Phobos is a small, irregularly shaped object with a mean radius of 11 km.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Phobos2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Phobos2D.png"
             },
             "Deimos": {
                 name: "Deimos",
                 description: "Deimos is the smaller and outermost of the two natural satellites of the planet Mars, with a mean radius of 6.2 km.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Deimos2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Deimos2D.png"
             },
             "Io": {
                 name: "Io",
                 description: "Io is the innermost of the four Galilean moons of the planet Jupiter and, with a diameter of 3,643.2 km, the fourth-largest moon in the Solar System.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Io2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/IO2D.png"
             },
             "Europa": {
                 name: "Europa",
                 description: "Europa is the smallest of the four Galilean moons orbiting Jupiter, and the sixth-closest to the planet.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Europa2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Europa2D.png"
             },
             "Ganymede": {
                 name: "Ganymede",
                 description: "Ganymede is the largest and most massive moon of Jupiter and in the Solar System. It is the ninth largest object in the Solar System.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Ganymede2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Ganymede2D.png"
             },
             "Callisto": {
                 name: "Callisto",
                 description: "Callisto is the second-largest moon of Jupiter, after Ganymede. It is the third-largest moon in the Solar System.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Callisto2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Callisto2D.png"
             },
             "Titan": {
                 name: "Titan",
                 description: "Titan is the largest moon of Saturn and the second-largest natural satellite in the Solar System. It is the only moon known to have a dense atmosphere.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Titan2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Titan2D.png"
+            },
+            "Titania": {
+                name: "Titania",
+                description: "Titania is the largest of the moons of Uranus and the eighth largest moon in the Solar System at a diameter of 1,578 kilometres (981 mi).",
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Titania2D.png"
+            },
+            "Oberon": {
+                name: "Oberon",
+                description: "Oberon is the second largest moon of Uranus. It was discovered by William Herschel on 11 January 1787, the same day he discovered Uranus' largest moon, Titania.",
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Oberon2D.png"
+            },
+            "Miranda": {
+                name: "Miranda",
+                description: "Miranda is the smallest and innermost of Uranus's five round satellites and is the fifth largest moon of Uranus, with a mean diameter of 471.6 km.",
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Miranda2D.png"
             },
             "Triton": {
                 name: "Triton",
                 description: "Triton is the largest natural satellite of the planet Neptune. It is the only large moon in the Solar System with a retrograde orbit.",
-                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Triton2d.png"
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Triton2D.png"
             }
         };
     
@@ -636,6 +758,9 @@ const createScene = function () {
             "moon4_2": "Ganymede",
             "moon4_3": "Callisto",
             "moon5_0": "Titan",
+            "moon6_0": "Titania",
+            "moon6_1": "Oberon",
+            "moon6_2": "Miranda",
             "moon7_0": "Triton"
         };
     
@@ -668,19 +793,137 @@ const createScene = function () {
             popup.style.display = "none";
         });
     } 
+    // Prevent default right-click context menu
+    window.addEventListener('contextmenu', (event) => {
+        event.preventDefault();
+    });
 
-    return scene;
-};
+    // Function to disable right-click drag behavior
+    const disableRightClickDrag = () => {
+        canvas.oncontextmenu = (e) => {
+            e.preventDefault();
+        };
 
-const scene = createScene();
+        // Remove right-click event listeners
+        canvas.removeEventListener("mousedown", onRightMouseDown);
+        canvas.removeEventListener("mouseup", onRightMouseUp);
+        canvas.removeEventListener("mousemove", onRightMouseMove);
+    };
 
-engine.runRenderLoop(function () {
-    scene.render();
-});
+    const onRightMouseDown = (event) => {
+        if (event.button === 2) { // Right mouse button
+            event.preventDefault();
+        }
+    };
 
-window.addEventListener("resize", function () {
+    const onRightMouseUp = (event) => {
+        if (event.button === 2) { // Right mouse button
+            event.preventDefault();
+        }
+    };
+
+    const onRightMouseMove = (event) => {
+        if (event.button === 2) { // Right mouse button
+            event.preventDefault();
+        }
+    };
+
+    // Add event listeners to disable right-click drag
+    canvas.addEventListener("mousedown", onRightMouseDown);
+    canvas.addEventListener("mouseup", onRightMouseUp);
+    canvas.addEventListener("mousemove", onRightMouseMove);
+
+    // Call the function to disable right-click drag behavior
+    disableRightClickDrag();
+
+    // Speed multiplier slider setup
+    const speedSlider = document.getElementById('speedSlider');
+    const speedValue = document.getElementById('speedValue');
+
+    let speedMultiplier = 1.0; // initial speed multiplier
+
+    // Function to handle slider change
+    const updateSpeedMultiplier = () => {
+        speedMultiplier = speedSlider.value / 100;
+        speedValue.innerText = `${speedMultiplier.toFixed(1)}x`;
+        isPlaying = speedMultiplier > minSpeedMultiplier; // Stop movement at minimum slider value
+        console.log(`Speed multiplier updated: ${speedMultiplier}, isPlaying: ${isPlaying}`);
+    };
+
+    // Attach the event listener for the slider
+    speedSlider.addEventListener('input', updateSpeedMultiplier);
+
+    // Ensure the updates happen only when the slider change is complete
+    speedSlider.addEventListener('change', updateSpeedMultiplier);
+
+        return scene;
+    };
+    // Function to update the positions and rotations
+    const updatePositions = () => {
+        if (!isPlaying) return;
+
+        const currentTime = Date.now();
+
+        celestialBodies.forEach((body, index) => {
+            const distance = body.data.distance;
+            const orbitPeriod = 2 * Math.PI / body.data.orbitSpeed;
+            const angle = ((currentTime * body.data.orbitSpeed * speedMultiplier) / 1000) % (2 * Math.PI);
+
+            // Update position based on the new angle
+            body.mesh.position.x = distance * Math.cos(angle);
+            body.mesh.position.z = distance * Math.sin(angle);
+
+            // Update rotation
+            if (isPlaying) {
+                body.mesh.rotation.y += baseSpeed * speedMultiplier * 0.01;
+            }
+        });
+
+        moons.forEach((moon, index) => {
+            const distance = moon.data.distance;
+            const orbitPeriod = 2 * Math.PI / moon.data.orbitSpeed;
+            const angle = ((currentTime * moon.data.orbitSpeed * speedMultiplier) / 1000) % (2 * Math.PI);
+
+            // Update position based on the new angle
+            moon.mesh.position.x = moon.parent.position.x + distance * Math.cos(angle);
+            moon.mesh.position.z = moon.parent.position.z + distance * Math.sin(angle);
+
+            // Update rotation
+            if (isPlaying) {
+                moon.mesh.rotation.y += baseSpeed * speedMultiplier * 0.01;
+            }
+        });
+
+        // Update sun rotation
+        if (isPlaying) {
+            sun.rotation.y += baseSpeed * speedMultiplier * 0.01;
+        }
+    };
+    // Main code to create and render the scene
+    const scene = createScene();
+    engine.runRenderLoop(() => {
+        updatePositions();
+        scene.render();
+    });
+
+// Handle window resize
+window.addEventListener("resize", () => {
     engine.resize();
 });
+// Show the welcome popup and hide the controls initially
+window.onload = () => {
+    const welcomePopup = document.getElementById('welcomePopup');
+    const welcomeBtn = document.getElementById('welcomeBtn');
+    const controlsDiv = document.getElementById('speedSliderContainer');
+
+    welcomePopup.style.display = 'flex';
+    controlsDiv.style.display = 'none';
+
+    welcomeBtn.addEventListener('click', function () {
+        welcomePopup.style.display = 'none';
+        controlsDiv.style.display = 'flex'; // Show controls after closing the welcome popup
+    });
+};
 
 function animateCameraToTarget(camera, target, onComplete) {
     const animation = new BABYLON.Animation("cameraAnimation", "position", 60, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT);
@@ -709,9 +952,9 @@ window.addEventListener("load", function () {
     welcomeBtn.addEventListener("click", function () {
         welcomePopup.style.display = "none";
         mainContent.style.filter = "none";
+        document.getElementById("controls").style.display = 'flex'; // Show the controls once the welcome popup is closed
     });
 });
-
 
 // Function to start updating target position
 function startUpdatingTargetPosition(planet) {
@@ -731,3 +974,7 @@ function stopUpdatingTargetPosition() {
         intervalId = null;
     }
 }
+
+engine.runRenderLoop(function () {
+    scene.render();
+});
