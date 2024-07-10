@@ -93,6 +93,37 @@
             font-size: 18px;
             color: white;
         }
+
+        #progress-container {
+            width: 100%;
+            background-color: grey;
+            height: 20px;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 100%;
+            background-color: green;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+
+        #progress-text {
+            text-align: center;
+            color: white;
+            font-size: 16px; /* Adjust the font size as needed */
+            margin-top: 10px; /* Add some space above the progress text */
+        }
+
+        /* Disabled button style */
+        #welcomeBtn:disabled {
+            background-color: #ccc;
+            color: #888;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -117,7 +148,11 @@
             </ul>
             <p>Hint #1: Wait for the ship to arrive at its destination to receive details about it</p>
             <p>Hint #2: The celestial body you visit will fully lit so you can zoom in and inspect it from all sides</p>
-            <button id="welcomeBtn">I got it!</button>
+            <div id="progress-text">Loading...</div>
+            <div id="progress-container">
+                <div id="progress-bar"></div>
+            </div>
+            <button id="welcomeBtn" disabled>I got it!</button>
         </div>
     </div>
     <div id="speedSliderContainer" style="display: none;">
@@ -126,7 +161,6 @@
     </div>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-    <script src="https://kit.fontawesome.com/a076d05399.js" crossorigin="anonymous"></script>
     <script src="scripts.js"></script>
 </body>
 </html>
