@@ -2,11 +2,7 @@
 const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 const updateInterval = 100; // Update every 100 milliseconds
-const baseSpeed = 0.01; // Adjust based on your base speed for rotation and orbits
-const speedSlider = document.getElementById('speedSlider');
-const speedValue = document.getElementById('speedValue');
-const maxSpeedMultiplier = 5;
-const minSpeedMultiplier = 0.1;
+const baseSpeed = 0.01;
 
 // Declared Variables - LETs
 let hasArrived = false; // Flag to track if the spaceship has arrived
@@ -22,6 +18,15 @@ let moons = [];
 let sun; // Declare sun globally
 let baseTime = Date.now();
 let lastPickedMesh = null;
+
+// Create a function to update the time scale based on the slider value
+let simulationSpeed = 1;
+
+function updateSimulationSpeed(speed) {
+    // Map the slider value (1 to 100) to a speed factor (0.01x to 1.0x)
+    simulationSpeed = (speed / 100) * 0.99 + 0.01; // Maps 1 to 0.01, 100 to 1.0
+    updateSliderText(speed);
+};
 
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
@@ -40,64 +45,77 @@ const createScene = function () {
     camera.attachControl(canvas, true, false, false); // Disable right-click drag behavior
     camera.checkCollisions = true; // Enable collision detection for camera
 
-    // Light
-    const light = new BABYLON.PointLight("light", new BABYLON.Vector3(0, 0, 0), scene);
-    light.intensity = 3;
+    // Add a hemispheric light for the asteroids
+    const asteroidLight = new BABYLON.HemisphericLight("asteroidLight", new BABYLON.Vector3(0, -1, 0), scene);
+    asteroidLight.position = new BABYLON.Vector3(0, 100, 0); // Position the light above the scene
+    asteroidLight.intensity = 1.0; // Ensure intensity is adequate
 
-// Create the sun with proper material and texture
-const sunTextureUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/2ksun.jpg";
+    // Add an event listener to the existing speedSlider to update the simulation speed
+    speedSlider.addEventListener("input", (event) => {
+        const speed = parseFloat(event.target.value);
+        updateSimulationSpeed(speed);
+        updateSliderText(speed);
+    });
+    
+    // Call updateSliderText to set the initial value
+    updateSliderText(speedSlider.value);
+    
+    // Set initial simulation speed to 1.0 (normal speed)
+    updateSimulationSpeed(100);
 
-// Create the sun
-sun = BABYLON.MeshBuilder.CreateSphere("sun", { diameter: 20 }, scene);
-const sunMaterial = new BABYLON.StandardMaterial("sunMaterial", scene);
+    // Create the sun with proper material and texture
+    const sunTextureUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/2ksun.jpg";
+    sun = BABYLON.MeshBuilder.CreateSphere("sun", { diameter: 20 }, scene);
+    const sunMaterial = new BABYLON.StandardMaterial("sunMaterial", scene);
+    sun.renderingGroupId = 2; // Ensure the rendering group ID is 0
 
-// Ensure the texture is loaded and applied
-sunMaterial.diffuseTexture = new BABYLON.Texture(sunTextureUrl, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
-    console.log("Sun texture loaded successfully.");
-}, (message) => {
-    console.error("Failed to load sun texture:", message);
-});
+    // Ensure the texture is loaded and applied
+    sunMaterial.diffuseTexture = new BABYLON.Texture(sunTextureUrl, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
+        console.log("Sun texture loaded successfully.");
+    }, (message) => {
+        console.error("Failed to load sun texture:", message);
+    });
 
-// Disable lighting and apply emissive texture
-sunMaterial.emissiveTexture = new BABYLON.Texture(sunTextureUrl, scene);
-sunMaterial.disableLighting = true;
-sun.material = sunMaterial;
-sun.position = new BABYLON.Vector3(0, 0, 0);
-sun.checkCollisions = true; // Enable collision detection for the sun
+    // Disable lighting and apply emissive texture
+    sunMaterial.emissiveTexture = new BABYLON.Texture(sunTextureUrl, scene);
+    sunMaterial.disableLighting = true;
+    sun.material = sunMaterial;
+    sunMaterial.backFaceCulling = false; // Ensure that the material is rendered from both sides
+    sunMaterial.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE; // Set transparency mode to opaque
+    sun.position = new BABYLON.Vector3(0, 0, 0);
+    sun.checkCollisions = true; // Enable collision detection for the sun
 
-console.log("Sun created:", sun);
+    console.log("Sun created:", sun);
 
-// Verify the material properties
-console.log("Sun material properties:", {
-    emissiveTexture: sunMaterial.emissiveTexture,
-    disableLighting: sunMaterial.disableLighting,
-});
+    // Verify the material properties
+    console.log("Sun material properties:", {
+        emissiveTexture: sunMaterial.emissiveTexture,
+        disableLighting: sunMaterial.disableLighting,
+    });
 
-// Step 3: Create and Configure the Glow Layer
-const glowLayer = new BABYLON.GlowLayer("glow", scene);
-glowLayer.intensity = 1.5; // Adjust intensity as needed
-glowLayer.addIncludedOnlyMesh(sun);
+    // Step 3: Create and Configure the Glow Layer
+    const glowLayer = new BABYLON.GlowLayer("glow", scene);
+    glowLayer.intensity = 1.5; // Adjust intensity as needed
+    glowLayer.addIncludedOnlyMesh(sun);
 
-console.log("Glow layer created and applied to the sun.");
+    console.log("Glow layer created and applied to the sun.");
 
-// Function to create sun rays
-function createSunRays(scene, sun) {
-    const sunRays = new BABYLON.VolumetricLightScatteringPostProcess('godrays', 1.0, scene.activeCamera, sun, 100, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false);
-    sunRays.exposure = 0.3;
-    sunRays.decay = 0.96815;
-    sunRays.weight = 0.58767;
-    sunRays.density = 0.926;
-    console.log("Sun rays created and applied to the sun.");
-    sunRays.renderingGroupId = 0; // Ensure the rendering group ID is 0
-}
+    // Function to create sun rays
+    function createSunRays(scene, sun) {
+        const sunRays = new BABYLON.VolumetricLightScatteringPostProcess('godrays', 1.0, scene.activeCamera, sun, 100, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false);
+        sunRays.exposure = 0.3;
+        sunRays.decay = 0.96815;
+        sunRays.weight = 0.58767;
+        sunRays.density = 0.926;
+        sunRays.renderingGroupId = 0; // Ensure the rendering group ID is 0
+        console.log("Sun rays created and applied to the sun.");
+    }
 
-createSunRays(scene, sun);
+    createSunRays(scene, sun);
 
-    // Create a light that only affects asteroids
-    const asteroidLight = new BABYLON.DirectionalLight("asteroidLight", new BABYLON.Vector3(0, -1, 0), scene);
-    asteroidLight.intensity = 2; // Adjust intensity as needed
+    // ASTEROIDS //
 
-    //Asteroid belts constants
+    // Asteroid belts constants
     const startButton = document.getElementById('welcomeBtn');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
@@ -116,8 +134,9 @@ createSunRays(scene, sun);
                     // Apply a basic material to the asteroid
                     const asteroidMaterial = new BABYLON.StandardMaterial("asteroidMaterial", scene);
                     asteroidMaterial.diffuseTexture = new BABYLON.Texture("https://raw.githubusercontent.com/razvanpf/Images/main/2k_mars.jpg", scene); // Example texture
-                    asteroidMaterial.emissiveColor = new BABYLON.Color3(1.0, 1.0, 1.0); // Increase emissive color to ensure visibility
-                    asteroidMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Ensure no specular highlights
+                    asteroidMaterial.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2); // Ensure a slight emissive color for visibility
+                    asteroidMaterial.specularColor = new BABYLON.Color3(1, 1, 1); // Add specular highlights for light reflection
+                    asteroidMaterial.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7); // Ensure diffuse color is set
                     model.material = asteroidMaterial;
 
                     // Ensure the asteroid is visible
@@ -138,7 +157,7 @@ createSunRays(scene, sun);
     async function createAsteroidBelt(scene, innerRadius, outerRadius, numAsteroids, yRange, progressCallback) {
         const asteroidPromises = [];
         for (let i = 0; i < numAsteroids; i++) {
-            asteroidPromises.push(loadModel(asteroidUrl, scene, 0.05).finally(progressCallback)); // Adjust the scaling as needed
+            asteroidPromises.push(loadModel(asteroidUrl, scene, 0.08).finally(progressCallback)); // Adjust the scaling as needed
         }
 
         const asteroidModels = await Promise.all(asteroidPromises);
@@ -161,7 +180,7 @@ createSunRays(scene, sun);
             );
 
             // Apply a random scale
-            const randomScale = 0.03 + Math.random() * 0.04; // Scale between 0.03 and 0.07
+            const randomScale = 0.04 + Math.random() * 0.04; // Scale between 0.04 and 0.08 for better visibility
             asteroid.scaling = new BABYLON.Vector3(randomScale, randomScale, randomScale);
 
             // Ensure the asteroid does not cast shadows
@@ -182,6 +201,14 @@ createSunRays(scene, sun);
                 showDetailsPopup(asteroid);
             }));
 
+            // Correctly add asteroids to the light
+            const asteroidLight = scene.getLightByName("asteroidLight");
+            if (asteroidLight) {
+                asteroid.getChildMeshes().forEach(mesh => {
+                    console.log(`Adding mesh ${mesh.name} with position`, mesh.position);
+                    asteroidLight.includedOnlyMeshes.push(mesh);
+                });
+            }
 
             asteroids.push(asteroid);
         }
@@ -210,13 +237,14 @@ createSunRays(scene, sun);
         animateAsteroids(kuiperAsteroids, 0.00001); // Adjust speed as necessary
     }
 
+
     // Function to animate asteroids orbiting around the sun
     function animateAsteroids(asteroids, speed) {
         scene.registerBeforeRender(() => {
-            const deltaTime = engine.getDeltaTime() * speed; // Speed adjustment
+            const deltaTime = engine.getDeltaTime() * speed * simulationSpeed; // Speed adjustment with simulation speed
             asteroids.forEach(asteroid => {
                 const radius = Math.sqrt(asteroid.position.x ** 2 + asteroid.position.z ** 2);
-                const angle = Math.atan2(asteroid.position.z, asteroid.position.x) - deltaTime; // Adjust for clockwise rotation
+                const angle = Math.atan2(asteroid.position.z, asteroid.position.x) + deltaTime; // Change - deltaTime to + deltaTime for counter-clockwise rotation
 
                 asteroid.position.x = radius * Math.cos(angle);
                 asteroid.position.z = radius * Math.sin(angle);
@@ -251,34 +279,6 @@ createSunRays(scene, sun);
         startButton.style.backgroundColor = ''; // Reset the button style
         startButton.style.color = ''; // Reset the text color
         startButton.style.cursor = ''; // Reset the cursor
-    };
-
-    function showDetailsPopup(mesh) {
-        const popup = document.getElementById("popup");
-        popup.style.display = "block";
-    
-        const asteroidInfo = {
-            name: "Asteroid",
-            description: "An asteroid in the asteroid belt. More details to be added.",
-            image: "https://example.com/asteroid.jpg" // Example image URL, replace with actual
-        };
-    
-        const info = `
-            <div style="text-align: center;">
-                <h1>You discovered</h1>
-                <h2>${asteroidInfo.name}</h2>
-                <img src="${asteroidInfo.image}" alt="${asteroidInfo.name}" style="width: 100px; height: 100px;">
-                <p>${asteroidInfo.description}</p>
-                <button id="continueBtn" style="background-color: transparent; color: white; padding: 10px 20px; border: 2px solid blue; border-radius: 5px; cursor: pointer; margin-top: 20px;">
-                    Continue exploration
-                </button>
-            </div>
-        `;
-        popup.innerHTML = info;
-    
-        document.getElementById("continueBtn").addEventListener("click", function () {
-            popup.style.display = "none";
-        });
     }
 
     // Call the function to create asteroid belts
@@ -325,8 +325,9 @@ createSunRays(scene, sun);
     function moveShip() {
         if (targetPosition) {
             const direction = targetPosition.subtract(spaceship.position).normalize();
-            spaceship.position.addInPlace(direction.scale(0.1)); // Adjust the speed as needed
-
+            const speed = 0.4; // Adjust the speed as needed
+            spaceship.position.addInPlace(direction.scale(speed)); // Adjust the speed as needed
+    
             if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1) {
                 scene.unregisterBeforeRender(moveShip); // Stop moving the ship
                 targetPosition = null;
@@ -340,10 +341,10 @@ createSunRays(scene, sun);
 
     // Sun Rotation
     scene.registerBeforeRender(() => {
-        sun.rotation.y += baseSpeed * 0.1; // Slow down initial rotation speed
+        sun.rotation.y -= baseSpeed * simulationSpeed * 0.1;
     });
 
-    // Planets and Moons Data
+    // Create and configure celestial bodies, planets, and moons
     const celestialData = [
         {
             name: "Mercury",
@@ -351,6 +352,7 @@ createSunRays(scene, sun);
             size: 1,
             distance: 20,
             orbitSpeed: 0.01,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: []
         },
         {
@@ -359,6 +361,7 @@ createSunRays(scene, sun);
             size: 1.2,
             distance: 30,
             orbitSpeed: 0.008,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: []
         },
         {
@@ -367,8 +370,9 @@ createSunRays(scene, sun);
             size: 1.3,
             distance: 40,
             orbitSpeed: 0.006,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: [
-                { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Moon3D.jpg" }
+                { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Moon3D.jpg" }
             ]
         },
         {
@@ -377,9 +381,10 @@ createSunRays(scene, sun);
             size: 1.1,
             distance: 50,
             orbitSpeed: 0.005,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: [
-                { name: "Phobos", size: 0.1, distance: 2, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Phobos3D.jpg" },
-                { name: "Deimos", size: 0.1, distance: 3, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Deimos3D.jpg" }
+                { name: "Phobos", size: 0.1, distance: 2, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Phobos3D.jpg" },
+                { name: "Deimos", size: 0.1, distance: 3, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Deimos3D.jpg" }
             ]
         },
         {
@@ -388,11 +393,12 @@ createSunRays(scene, sun);
             size: 2.2,
             distance: 70,
             orbitSpeed: 0.004,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: [
-                { name: "Io", size: 0.3, distance: 4, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/IO3D.jpg" },
-                { name: "Europa", size: 0.3, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Europa3D.jpg" },
-                { name: "Ganymede", size: 0.3, distance: 6, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Ganymede.jpg" },
-                { name: "Callisto", size: 0.3, distance: 7, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Callisto3D.jpg" }
+                { name: "Io", size: 0.3, distance: 4, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/IO3D.jpg" },
+                { name: "Europa", size: 0.3, distance: 5, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Europa3D.jpg" },
+                { name: "Ganymede", size: 0.3, distance: 6, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Ganymede.jpg" },
+                { name: "Callisto", size: 0.3, distance: 7, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Callisto3D.jpg" }
             ]
         },
         {
@@ -401,8 +407,9 @@ createSunRays(scene, sun);
             size: 1.8,
             distance: 90,
             orbitSpeed: 0.003,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: [
-                { name: "Titan", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titan3D.jpg" }
+                { name: "Titan", size: 0.4, distance: 5, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titan3D.jpg" }
             ]
         },
         {
@@ -411,10 +418,11 @@ createSunRays(scene, sun);
             size: 1.5,
             distance: 110,
             orbitSpeed: 0.002,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: [
-                { name: "Titania", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titania3D.jpg" },
-                { name: "Oberon", size: 0.4, distance: 7, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Oberon3Dv2.jpg" },
-                { name: "Miranda", size: 0.3, distance: 4, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Miranda3D.jpg" }
+                { name: "Titania", size: 0.4, distance: 5, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titania3D.jpg" },
+                { name: "Oberon", size: 0.4, distance: 7, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Oberon3Dv2.jpg" },
+                { name: "Miranda", size: 0.3, distance: 4, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Miranda3D.jpg" }
             ]
         },
         {
@@ -423,8 +431,9 @@ createSunRays(scene, sun);
             size: 1.4,
             distance: 130,
             orbitSpeed: 0.001,
+            rotationSpeed: 0.01, // Rotation speed around own axis
             moons: [
-                { name: "Triton", size: 0.4, distance: 5, orbitSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Triton3D.jpg" }
+                { name: "Triton", size: 0.4, distance: 5, orbitSpeed: 0.02, rotationSpeed: 0.02, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Triton3D.jpg" }
             ]
         }
     ];
@@ -438,7 +447,7 @@ createSunRays(scene, sun);
             orbitMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
             orbitMaterial.alpha = 0.5; // Set the opacity to 50%
             orbit.material = orbitMaterial;
-            orbit.renderingGroupId = 2; // Ensure the rendering group ID is higher than sun rays
+            orbit.renderingGroupId = 1; // Set the rendering group ID higher than sun rays
         });
     };
 
@@ -450,6 +459,7 @@ createSunRays(scene, sun);
         planet.material = planetMaterial;
         planetMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
         planet.position = new BABYLON.Vector3(data.distance, 0, 0);
+        planet.renderingGroupId = 1; // Set the rendering group ID higher than sun rays
 
         // Create rings
         createRings(scene);
@@ -513,11 +523,6 @@ createSunRays(scene, sun);
             planet.renderOutline = false;
         }));
 
-        // Planet Rotation
-        scene.registerBeforeRender(() => {
-            planet.rotation.y += baseSpeed * 0.1; // Slow down initial rotation speed
-        });
-
         data.moons.forEach((moonData, moonIndex) => {
             const moon = BABYLON.MeshBuilder.CreateSphere(`moon${index}_${moonIndex}`, { diameter: moonData.size * 2 }, scene);
             const moonMaterial = new BABYLON.StandardMaterial(`moonMaterial${index}_${moonIndex}`, scene);
@@ -526,6 +531,7 @@ createSunRays(scene, sun);
             moonMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
             moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
             moons.push({ mesh: moon, data: moonData, parent: planet, angle: 0 });
+            moon.renderingGroupId = 1; // Set the rendering group ID higher than sun rays
     
             // Set initial position of the moon
             moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
@@ -541,32 +547,40 @@ createSunRays(scene, sun);
             moon.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, function () {
                 moon.renderOutline = false;
             }));
-    
-            // Moon Rotation
-            scene.registerBeforeRender(() => {
-                moon.rotation.y += baseSpeed * 0.1; // Slow down initial rotation speed
-            });
         });
     });
 
     // Animate planets around the sun
     scene.registerBeforeRender(function () {
-        const deltaTime = engine.getDeltaTime() * 0.0001 * speedMultiplier; // Add speedMultiplier
+        const deltaTime = engine.getDeltaTime() * 0.0001 * speedMultiplier * simulationSpeed; // Add simulationSpeed
+    
         celestialBodies.forEach((body) => {
             const distance = body.data.distance;
             const speed = 0.001 / distance; // Adjust speed based on distance
-            const angle = -(Date.now() * speed * speedMultiplier) % (2 * Math.PI); // Clockwise orbit with speedMultiplier
+            const angle = (Date.now() * speed * speedMultiplier * simulationSpeed) % (2 * Math.PI); // Counter-clockwise orbit with speedMultiplier and simulationSpeed
             body.mesh.position.x = distance * Math.cos(angle);
             body.mesh.position.z = distance * Math.sin(angle);
+    
+            // Rotation around own axis
+            if (body.data.name === "Venus") {
+                body.mesh.rotation.y += body.data.rotationSpeed * simulationSpeed * 0.1; // Clockwise rotation
+            } else if (body.data.name === "Uranus") {
+                body.mesh.rotation.z += body.data.rotationSpeed * simulationSpeed * 0.1; // Rolling rotation
+            } else {
+                body.mesh.rotation.y -= body.data.rotationSpeed * simulationSpeed * 0.1; // Counter-clockwise rotation
+            }
         });
-
+    
         // Animate moons around their planets
         moons.forEach((moon) => {
             const distance = moon.data.distance;
             const speed = 0.001 / distance; // Adjust speed based on distance
-            const angle = -(Date.now() * speed * speedMultiplier) % (2 * Math.PI); // Clockwise orbit with speedMultiplier
+            const angle = (Date.now() * speed * speedMultiplier * simulationSpeed) % (2 * Math.PI); // Counter-clockwise orbit with speedMultiplier and simulationSpeed
             moon.mesh.position.x = moon.parent.position.x + distance * Math.cos(angle);
             moon.mesh.position.z = moon.parent.position.z + distance * Math.sin(angle);
+    
+            // Rotation around own axis
+            moon.mesh.rotation.y -= moon.data.rotationSpeed * simulationSpeed * 0.1; // Counter-clockwise rotation
         });
     });
 
@@ -699,10 +713,11 @@ createSunRays(scene, sun);
         // Update your moveToTarget function to use onArrival callback
         function moveToTarget(targetPosition, onArrivalCallback) {
             targetPosition = targetPosition.clone(); // Clone to avoid modifying the original target position
+            const speed = 0.4; // Adjust the speed as needed
             scene.registerBeforeRender(function moveShip() {
                 const direction = targetPosition.subtract(spaceship.position).normalize();
-                spaceship.position.addInPlace(direction.scale(0.1)); // Adjust the speed as needed
-
+                spaceship.position.addInPlace(direction.scale(speed)); // Adjust the speed as needed
+        
                 if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1) {
                     scene.unregisterBeforeRender(moveShip); // Stop moving the ship
                     if (onArrivalCallback) {
@@ -843,7 +858,7 @@ createSunRays(scene, sun);
         planetLight.intensity = 1.5;
         planetLight.parent = planet;
 
-        // Ensure the light only affects the visited planet
+        // Ensure the light ffects the visited planet
         planetLight.includedOnlyMeshes = [planet];
 
         // Update the current lit planet
@@ -1011,7 +1026,8 @@ createSunRays(scene, sun);
         document.getElementById("continueBtn").addEventListener("click", function () {
             popup.style.display = "none";
         });
-    } 
+    }
+
     // Prevent default right-click context menu
     window.addEventListener('contextmenu', (event) => {
         event.preventDefault();
@@ -1055,69 +1071,9 @@ createSunRays(scene, sun);
     // Call the function to disable right-click drag behavior
     disableRightClickDrag();
 
-    // Speed multiplier slider setup
-    const speedSlider = document.getElementById('speedSlider');
-    const speedValue = document.getElementById('speedValue');
-
-    let speedMultiplier = 1.0; // initial speed multiplier
-
-    // Function to handle slider change
-    const updateSpeedMultiplier = () => {
-        speedMultiplier = speedSlider.value / 100;
-        speedValue.innerText = `${speedMultiplier.toFixed(1)}x`;
-        isPlaying = speedMultiplier > minSpeedMultiplier; // Stop movement at minimum slider value
-    };
-
-    // Attach the event listener for the slider
-    speedSlider.addEventListener('input', updateSpeedMultiplier);
-
-    // Ensure the updates happen only when the slider change is complete
-    speedSlider.addEventListener('change', updateSpeedMultiplier);
-
     return scene;
 };
 
-// Function to update the positions and rotations
-const updatePositions = () => {
-    if (!isPlaying) return;
-
-    const currentTime = Date.now();
-
-    celestialBodies.forEach((body, index) => {
-        const distance = body.data.distance;
-        const orbitPeriod = 2 * Math.PI / body.data.orbitSpeed;
-        const angle = ((currentTime * body.data.orbitSpeed * speedMultiplier) / 1000) % (2 * Math.PI);
-
-        // Update position based on the new angle
-        body.mesh.position.x = distance * Math.cos(angle);
-        body.mesh.position.z = distance * Math.sin(angle);
-
-        // Update rotation
-        if (isPlaying) {
-            body.mesh.rotation.y += baseSpeed * speedMultiplier * 0.01;
-        }
-    });
-
-    moons.forEach((moon, index) => {
-        const distance = moon.data.distance;
-        const orbitPeriod = 2 * Math.PI / moon.data.orbitSpeed;
-        const angle = ((currentTime * moon.data.orbitSpeed * speedMultiplier) / 1000) % (2 * Math.PI);
-
-        // Update position based on the new angle
-        moon.mesh.position.x = moon.parent.position.x + distance * Math.cos(angle);
-        moon.mesh.position.z = moon.parent.position.z + distance * Math.sin(angle);
-
-        // Update rotation
-        if (isPlaying) {
-            moon.mesh.rotation.y += baseSpeed * speedMultiplier * 0.01;
-        }
-    });
-
-    // Update sun rotation
-    if (isPlaying) {
-        sun.rotation.y += baseSpeed * speedMultiplier * 0.01;
-    }
-};
 
 // Updated URL in loadModel function
 const asteroidUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/Asteroid2.glb";
@@ -1154,8 +1110,15 @@ function animateCameraToTarget(camera, target, onComplete) {
 
 // Main code to create and render the scene
 const scene = createScene();
+
+// Adjust the render loop to consider the simulation speed
+let lastTime = performance.now();
+
 engine.runRenderLoop(() => {
-    updatePositions();
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - lastTime) * simulationSpeed;
+    lastTime = currentTime;
+
     scene.render();
 });
 
@@ -1197,10 +1160,6 @@ function stopUpdatingTargetPosition() {
         intervalId = null;
     }
 }
-
-engine.runRenderLoop(function () {
-    scene.render();
-});
 
 // DYNAMIC EVENTS - SOLAR FLARE
 ////////////////////////////////////
@@ -1423,3 +1382,10 @@ function randomEvent() {
 
 // Start the random events
 randomEvent();
+
+// Add this function to update the text
+function updateSliderText(value) {
+    const speedFactor = (value / 100) * 0.9 + 0.1; // Same mapping formula
+    const speedText = speedFactor.toFixed(1) + "x"; // Format to 1 decimal place
+    document.getElementById("speedDisplay").innerText = speedText;
+}
