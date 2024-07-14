@@ -19,6 +19,34 @@ let sun; // Declare sun globally
 let baseTime = Date.now();
 let lastPickedMesh = null;
 
+// Array of image URLs
+const imageUrls = [
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Mercury2d.png",
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Venus2d.png",
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Earth2d.png",
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Mars2d.png",
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/jupiter2d.png",
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Saturn2dv2.png",
+    "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Uranus2d.png"
+//Continue HERE
+
+
+
+];
+
+// Function to preload images
+function preloadImages(urls) {
+    urls.forEach(url => {
+        const img = new Image();
+        img.src = url;
+    });
+}
+
+// Call pre-load function on page load
+window.onload = function() {
+    preloadImages(imageUrls);
+};
+
 // Create a function to update the time scale based on the slider value
 let simulationSpeed = 1;
 
@@ -1190,9 +1218,10 @@ function stopUpdatingTargetPosition() {
 // DYNAMIC EVENTS - SOLAR FLARE
 ////////////////////////////////////
 
+// Function to create solar flares with smoke texture
 function createSolarFlare(scene, sun) {
-    const flareSystem = new BABYLON.ParticleSystem("flare", 1000, scene); // Reduced number of particles
-    flareSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
+    const flareSystem = new BABYLON.ParticleSystem("flare", 2000, scene); // Increased number of particles
+    flareSystem.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/razvanpf/Images/main/smoke.png", scene);
 
     flareSystem.minEmitBox = new BABYLON.Vector3(-2, -2, -2); // Smaller emit box
     flareSystem.maxEmitBox = new BABYLON.Vector3(2, 2, 2);
@@ -1201,13 +1230,13 @@ function createSolarFlare(scene, sun) {
     flareSystem.color2 = new BABYLON.Color4(1, 0.3, 0, 1.0);
     flareSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
 
-    flareSystem.minSize = 0.7; // Slightly increased size
-    flareSystem.maxSize = 2.0;
+    flareSystem.minSize = 1.0; // Increased size for smokey effect
+    flareSystem.maxSize = 3.0;
 
-    flareSystem.minLifeTime = 0.2;
-    flareSystem.maxLifeTime = 0.5; // Reduced lifetime
+    flareSystem.minLifeTime = 0.3;
+    flareSystem.maxLifeTime = 0.7; // Increased lifetime for more visible effect
 
-    flareSystem.emitRate = 100; // Reduced emit rate
+    flareSystem.emitRate = 200; // Increased emit rate
 
     flareSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
 
@@ -1246,20 +1275,23 @@ function triggerSolarFlare() {
     flareSystem.start();
     setTimeout(() => {
         flareSystem.stop();
-    }, 1000); // Flare lasts for 1 second
+    }, 3000); // Flare lasts for 3 seconds
 }
 
 // Test the solar flare 10 seconds after loading the page
 setTimeout(triggerSolarFlare, 10000);
 
 // Function to handle random dynamic events
-function randomEvent() {
-    const randomTime = Math.random() * 60000; // Random time between 0 and 60 seconds
+function randomSolarFlareEvent() {
+    const randomTime = Math.random() * 30000; // Random time between 0 and 30 seconds
     setTimeout(() => {
         triggerSolarFlare();
-        randomEvent(); // Schedule the next random event
+        randomSolarFlareEvent(); // Schedule the next random solar flare event
     }, randomTime);
 }
+
+    randomSolarFlareEvent();
+
 // DYNAMIC EVENTS - COMET PASSING BY
 ////////////////////////////////////
 let activeComet = null; // Variable to track the active comet
@@ -1355,36 +1387,36 @@ async function createComet(scene) {
         cometMesh.material = cometMaterial;
 
         // Create the particle system for the comet's tail
-        const tailSystem = new BABYLON.ParticleSystem("cometTail", 2000, scene);
-        tailSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
+        const tailSystem = new BABYLON.ParticleSystem("cometTail", 10000, scene);
+        tailSystem.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/razvanpf/Images/main/smoke.png", scene);
 
-        tailSystem.minEmitBox = new BABYLON.Vector3(-1, 0, 0); // Starting point
-        tailSystem.maxEmitBox = new BABYLON.Vector3(1, 0, 0);  // Ending point
+        tailSystem.minEmitBox = new BABYLON.Vector3(-0.5, 0, 0); // Starting point
+        tailSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0);  // Ending point
 
         tailSystem.color1 = new BABYLON.Color4(0.5, 0.5, 1, 1.0);
         tailSystem.color2 = new BABYLON.Color4(0.2, 0.2, 0.8, 1.0);
         tailSystem.colorDead = new BABYLON.Color4(0, 0, 1, 0.0);
 
-        tailSystem.minSize = 0.4;
-        tailSystem.maxSize = 0.6;
+        tailSystem.minSize = 0.2; // Reduced size
+        tailSystem.maxSize = 0.4; // Reduced size
 
-        tailSystem.minLifeTime = 0.5;
-        tailSystem.maxLifeTime = 1;
+        tailSystem.minLifeTime = 0.1; // Reduced lifetime
+        tailSystem.maxLifeTime = 0.3; // Reduced lifetime
 
-        tailSystem.emitRate = 5000;
+        tailSystem.emitRate = 10000; // Increased emit rate
 
         tailSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
 
         tailSystem.gravity = new BABYLON.Vector3(0, 0, 0);
 
-        tailSystem.direction1 = new BABYLON.Vector3(-1, 2, -1);
-        tailSystem.direction2 = new BABYLON.Vector3(1, 2, 1);
+        tailSystem.direction1 = new BABYLON.Vector3(-1, 1, -1);
+        tailSystem.direction2 = new BABYLON.Vector3(1, 1, 1);
 
         tailSystem.minAngularSpeed = 0;
         tailSystem.maxAngularSpeed = Math.PI;
 
-        tailSystem.minEmitPower = 2;
-        tailSystem.maxEmitPower = 6;
+        tailSystem.minEmitPower = 1; // Decreased emit power
+        tailSystem.maxEmitPower = 2; // Decreased emit power
         tailSystem.updateSpeed = 0.01;
 
         tailSystem.emitter = cometMesh; // Attach the tail to the comet
@@ -1463,18 +1495,18 @@ async function triggerCometEvent() {
 }
 
 // Function to handle random dynamic events
-function randomEvent() {
+function randomCometEvent() {
     const randomTime = 20000; // 20 seconds
     setTimeout(() => {
         if (!activeComet) {
             triggerCometEvent();
         }
-        randomEvent(); // Schedule the next random event
+        randomCometEvent(); // Schedule the next random comet event
     }, randomTime);
 }
 
 // Start the random events
-randomEvent();
+randomCometEvent();
 
 // Update slider text
 function updateSliderText(value) {
