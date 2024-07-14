@@ -22,11 +22,14 @@ let lastPickedMesh = null;
 // Create a function to update the time scale based on the slider value
 let simulationSpeed = 1;
 
+// Ensure simulationSpeed is updated correctly
 function updateSimulationSpeed(speed) {
-    // Map the slider value (1 to 100) to a speed factor (0.01x to 1.0x)
-    simulationSpeed = (speed / 100) * 0.99 + 0.01; // Maps 1 to 0.01, 100 to 1.0
+    simulationSpeed = speed / 100; // Assuming the slider value ranges from 0 to 100
     updateSliderText(speed);
-};
+
+    // Log the updated simulation speed
+    console.log(`Updated Simulation Speed: ${simulationSpeed}`);
+}
 
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
@@ -50,12 +53,15 @@ const createScene = function () {
     asteroidLight.position = new BABYLON.Vector3(0, 100, 0); // Position the light above the scene
     asteroidLight.intensity = 1.0; // Ensure intensity is adequate
 
-    // Add an event listener to the existing speedSlider to update the simulation speed
+// Event listener for the speed slider to ensure simulationSpeed is being updated
     speedSlider.addEventListener("input", (event) => {
-        const speed = parseFloat(event.target.value);
-        updateSimulationSpeed(speed);
-        updateSliderText(speed);
-    });
+    const speed = parseFloat(event.target.value);
+    updateSimulationSpeed(speed);
+    updateSliderText(speed);
+
+    // Log the new speed for debugging
+    console.log(`New Simulation Speed: ${simulationSpeed}`);
+});
     
     // Call updateSliderText to set the initial value
     updateSliderText(speedSlider.value);
@@ -67,7 +73,6 @@ const createScene = function () {
     const sunTextureUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/2ksun.jpg";
     sun = BABYLON.MeshBuilder.CreateSphere("sun", { diameter: 20 }, scene);
     const sunMaterial = new BABYLON.StandardMaterial("sunMaterial", scene);
-    sun.renderingGroupId = 2; // Ensure the rendering group ID is 0
 
     // Ensure the texture is loaded and applied
     sunMaterial.diffuseTexture = new BABYLON.Texture(sunTextureUrl, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
@@ -85,20 +90,10 @@ const createScene = function () {
     sun.position = new BABYLON.Vector3(0, 0, 0);
     sun.checkCollisions = true; // Enable collision detection for the sun
 
-    console.log("Sun created:", sun);
-
-    // Verify the material properties
-    console.log("Sun material properties:", {
-        emissiveTexture: sunMaterial.emissiveTexture,
-        disableLighting: sunMaterial.disableLighting,
-    });
-
     // Step 3: Create and Configure the Glow Layer
     const glowLayer = new BABYLON.GlowLayer("glow", scene);
     glowLayer.intensity = 1.5; // Adjust intensity as needed
     glowLayer.addIncludedOnlyMesh(sun);
-
-    console.log("Glow layer created and applied to the sun.");
 
     // Function to create sun rays
     function createSunRays(scene, sun) {
@@ -108,10 +103,14 @@ const createScene = function () {
         sunRays.weight = 0.58767;
         sunRays.density = 0.926;
         sunRays.renderingGroupId = 0; // Ensure the rendering group ID is 0
-        console.log("Sun rays created and applied to the sun.");
     }
 
     createSunRays(scene, sun);
+
+// Create a point light at the sun's position
+const sunLight = new BABYLON.PointLight("sunLight", sun.position, scene);
+sunLight.intensity = 2; // Set the intensity of the light
+
 
     // ASTEROIDS //
 
@@ -205,7 +204,6 @@ const createScene = function () {
             const asteroidLight = scene.getLightByName("asteroidLight");
             if (asteroidLight) {
                 asteroid.getChildMeshes().forEach(mesh => {
-                    console.log(`Adding mesh ${mesh.name} with position`, mesh.position);
                     asteroidLight.includedOnlyMeshes.push(mesh);
                 });
             }
@@ -325,14 +323,22 @@ const createScene = function () {
     function moveShip() {
         if (targetPosition) {
             const direction = targetPosition.subtract(spaceship.position).normalize();
-            const speed = 0.4; // Adjust the speed as needed
-            spaceship.position.addInPlace(direction.scale(speed)); // Adjust the speed as needed
+            const baseSpeed = 0.4; // Base speed of the ship
+            const adjustedSpeed = simulationSpeed > 1 ? baseSpeed * (1 + ((simulationSpeed - 1) / (9.1 - 1)) * (2.3 - 1)) : baseSpeed; // Adjust the speed only if simulation speed is above 1
     
-            if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1) {
+            spaceship.moveWithCollisions(direction.scale(adjustedSpeed)); // Adjust the speed as needed
+    
+            // Use a precise distance check for arrival
+            const arrivalThreshold = 0.5; // Adjust the threshold as needed
+            if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < arrivalThreshold) {
                 scene.unregisterBeforeRender(moveShip); // Stop moving the ship
                 targetPosition = null;
+                hasArrived = true; // Set the flag to indicate arrival
+                particleSystem.stop();
+    
+                // Trigger the onArrival callback immediately
                 if (onArrivalCallback) {
-                    onArrivalCallback(); // Trigger the callback on arrival
+                    onArrivalCallback();
                     onArrivalCallback = null; // Clear the callback to avoid repeated calls
                 }
             }
@@ -447,7 +453,6 @@ const createScene = function () {
             orbitMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1);
             orbitMaterial.alpha = 0.5; // Set the opacity to 50%
             orbit.material = orbitMaterial;
-            orbit.renderingGroupId = 1; // Set the rendering group ID higher than sun rays
         });
     };
 
@@ -459,7 +464,6 @@ const createScene = function () {
         planet.material = planetMaterial;
         planetMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
         planet.position = new BABYLON.Vector3(data.distance, 0, 0);
-        planet.renderingGroupId = 1; // Set the rendering group ID higher than sun rays
 
         // Create rings
         createRings(scene);
@@ -531,7 +535,6 @@ const createScene = function () {
             moonMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
             moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
             moons.push({ mesh: moon, data: moonData, parent: planet, angle: 0 });
-            moon.renderingGroupId = 1; // Set the rendering group ID higher than sun rays
     
             // Set initial position of the moon
             moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
@@ -584,208 +587,217 @@ const createScene = function () {
         });
     });
 
-    // Spaceship
-    let spaceship;
-    BABYLON.SceneLoader.ImportMesh("", "https://models.babylonjs.com/", "ufo.glb", scene, function (meshes) {
-        spaceship = meshes[0];
-        spaceship.scaling = new BABYLON.Vector3(1, 1, 1); // Slightly bigger
-        spaceship.position = new BABYLON.Vector3(0, -15, 0);
-        // Set the initial position of the spaceship
-        const initialX = 15; // Move it to the left of the sun
-        const initialY = 0;    // Align with the orbit plane
-        const initialZ = 0;    // Same plane as the orbit rings
-        spaceship.checkCollisions = true; // Enable collision detection for the spaceship
-        spaceship.ellipsoid = new BABYLON.Vector3(1, 1, 1);
-        spaceship.ellipsoidOffset = new BABYLON.Vector3(0, 1, 0);
+// Spaceship
+let spaceship;
+let particleSystem; // Move the particleSystem declaration here
 
-        spaceship.position = new BABYLON.Vector3(initialX, initialY, initialZ);
+BABYLON.SceneLoader.ImportMesh("", "https://models.babylonjs.com/", "ufo.glb", scene, function (meshes) {
+    spaceship = meshes[0];
+    spaceship.scaling = new BABYLON.Vector3(1, 1, 1); // Slightly bigger
+    spaceship.position = new BABYLON.Vector3(0, -15, 0);
+    // Set the initial position of the spaceship
+    const initialX = 15; // Move it to the left of the sun
+    const initialY = 0;    // Align with the orbit plane
+    const initialZ = 0;    // Same plane as the orbit rings
+    spaceship.checkCollisions = true; // Enable collision detection for the spaceship
+    spaceship.ellipsoid = new BABYLON.Vector3(1, 1, 1);
+    spaceship.ellipsoidOffset = new BABYLON.Vector3(0, 1, 0);
 
-        // Create a light and attach it to the spaceship
-        const shipLight = new BABYLON.PointLight("shipLight", new BABYLON.Vector3(0, 5, 0), scene);
-        shipLight.intensity = 2; // Adjust the intensity to make the spaceship visible
-        shipLight.parent = spaceship;
+    spaceship.position = new BABYLON.Vector3(initialX, initialY, initialZ);
 
-        // Ensure the light is positioned slightly above the spaceship
-        shipLight.position = new BABYLON.Vector3(0, 5, 0); // 5 units above the spaceship
+    // Fiery Trail
+    particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
+    particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
+    particleSystem.emitter = spaceship;
+    particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5);
+    particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.5);
 
-        // Fiery Trail
-        const particleSystem = new BABYLON.ParticleSystem("particles", 2000, scene);
-        particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
-        particleSystem.emitter = spaceship;
-        particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5);
-        particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.5);
+    particleSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1.0);
+    particleSystem.color2 = new BABYLON.Color4(1, 0, 0, 1.0);
+    particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
 
-        particleSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1.0);
-        particleSystem.color2 = new BABYLON.Color4(1, 0, 0, 1.0);
-        particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+    particleSystem.minSize = 0.1;
+    particleSystem.maxSize = 0.5;
 
-        particleSystem.minSize = 0.1;
-        particleSystem.maxSize = 0.5;
+    particleSystem.minLifeTime = 0.3;
+    particleSystem.maxLifeTime = 1.5;
 
-        particleSystem.minLifeTime = 0.3;
-        particleSystem.maxLifeTime = 1.5;
+    particleSystem.emitRate = 500;
 
-        particleSystem.emitRate = 500;
+    particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
 
-        particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+    particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
 
-        particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+    particleSystem.direction1 = new BABYLON.Vector3(-1, -1, -1);
+    particleSystem.direction2 = new BABYLON.Vector3(1, -1, 1);
 
-        particleSystem.direction1 = new BABYLON.Vector3(-1, -1, -1);
-        particleSystem.direction2 = new BABYLON.Vector3(1, -1, 1);
+    particleSystem.minAngularSpeed = 0;
+    particleSystem.maxAngularSpeed = Math.PI;
 
-        particleSystem.minAngularSpeed = 0;
-        particleSystem.maxAngularSpeed = Math.PI;
+    particleSystem.minEmitPower = 1;
+    particleSystem.maxEmitPower = 3;
+    particleSystem.updateSpeed = 0.005;
 
-        particleSystem.minEmitPower = 1;
-        particleSystem.maxEmitPower = 3;
-        particleSystem.updateSpeed = 0.005;
+    particleSystem.start();
 
-        particleSystem.start();
+    // Apply emissive material to spaceship and child meshes
+    spaceship.getChildMeshes().forEach(mesh => {
+        // Adjust the material
+        const shipMaterial = new BABYLON.StandardMaterial("shipMaterial", scene);
+        shipMaterial.emissiveColor = new BABYLON.Color3(0, 0, 1); // Emissive color to make it stand out
+        mesh.material = shipMaterial;
 
-        // Event listener for canvas click
-        let isDragging = false;
-        let mouseDown = false;
-        let lastPickedMesh = null; // Store the last picked mesh
-
-        canvas.addEventListener("mousedown", function (evt) {
-            mouseDown = true;
-            isDragging = false;
-        });
-
-        canvas.addEventListener("mousemove", function (evt) {
-            if (mouseDown) {
-                isDragging = true;
-            }
-        });
-
-        canvas.addEventListener("mouseup", function (evt) {
-            mouseDown = false;
-            if (!isDragging) {
-                handleCanvasClick(evt);
-            }
-            isDragging = false;
-        });
-
-        function handleCanvasClick(evt) {
-            pickResult = scene.pick(evt.clientX, evt.clientY);
-            if (pickResult.hit && pickResult.pickedMesh) {
-                targetPosition = pickResult.pickedPoint;
-                spaceship.lookAt(targetPosition);
-                particleSystem.start();
-
-                // Detach the ship from the planet when a new target is selected
-                detachShipFromPlanet(spaceship);
-
-                // Reset the hasArrived flag
-                hasArrived = false;
-
-                // Zoom out without smooth transition
-                camera.radius += 20;
-
-                // Check if the target is a planet, moon, or sun
-                if (pickResult.pickedMesh.name.startsWith("planet") || pickResult.pickedMesh.name.startsWith("moon") || pickResult.pickedMesh.name === "sun") {
-                    lastPickedMesh = pickResult.pickedMesh; // Store the last picked mesh
-                    startUpdatingTargetPosition(pickResult.pickedMesh);
-                } else {
-                    lastPickedMesh = null; // Clear last picked mesh for unrecognized bodies
-                    stopUpdatingTargetPosition();
-                }
-            }
-        }
-
-        // This click event ensures that handleCanvasClick is only called if there was no dragging
-        canvas.addEventListener("click", function (evt) {
-            if (!isDragging) {
-                handleCanvasClick(evt);
-            }
-        });
-
-        // Function to handle arrival and trigger popup
-        function onArrival() {
-            if (lastPickedMesh) {
-                camera.setTarget(lastPickedMesh.position);
-                showPopup(lastPickedMesh);
-                lastPickedMesh = null; // Clear the last picked mesh after triggering the popup
-            }
-        }
-
-        // Update your moveToTarget function to use onArrival callback
-        function moveToTarget(targetPosition, onArrivalCallback) {
-            targetPosition = targetPosition.clone(); // Clone to avoid modifying the original target position
-            const speed = 0.4; // Adjust the speed as needed
-            scene.registerBeforeRender(function moveShip() {
-                const direction = targetPosition.subtract(spaceship.position).normalize();
-                spaceship.position.addInPlace(direction.scale(speed)); // Adjust the speed as needed
-        
-                if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1) {
-                    scene.unregisterBeforeRender(moveShip); // Stop moving the ship
-                    if (onArrivalCallback) {
-                        onArrivalCallback(); // Trigger the callback on arrival
-                    }
-                }
-            });
-        }
-
-        // Attach Ship function
-        function attachShipToPlanet(ship, planet) {
-            ship.parent = planet;
-            ship.position = BABYLON.Vector3.Zero(); // Reset the ship's position relative to the planet
-        }
-
-        // Detach ship function
-        function detachShipFromPlanet(ship) {
-            if (ship.parent) {
-                const worldMatrix = ship.getWorldMatrix();
-                const worldPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), worldMatrix);
-                ship.parent = null;
-                ship.position = worldPosition;
-            }
-        }
-
-        // Function to handle spaceship movement and camera focus
-        scene.registerBeforeRender(function () {
-            if (targetPosition) {
-                const direction = targetPosition.subtract(spaceship.position).normalize();
-                spaceship.moveWithCollisions(direction.scale(0.1));
-                if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < 0.1 && !hasArrived) {
-                    stopUpdatingTargetPosition();
-                    targetPosition = null;
-                    particleSystem.stop();
-                    hasArrived = true; // Set the flag to indicate arrival
-                    if (lastPickedMesh && lastPickedMesh.name.startsWith("planet")) {
-                        attachShipToPlanet(spaceship, lastPickedMesh);
-                        setTimeout(() => {
-                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the planet
-                            lightUpPlanet(lastPickedMesh); // Light up the planet
-                            showPopup(lastPickedMesh);
-                        }, 1000); // Add a delay before focusing on the planet
-                    } else if (lastPickedMesh && lastPickedMesh.name.startsWith("moon")) {
-                        setTimeout(() => {
-                            attachShipToPlanet(spaceship, lastPickedMesh);
-                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the moon
-                            lightUpPlanet(lastPickedMesh); // Light up the moon
-                            showPopup(lastPickedMesh);
-                        }, 1000); // Add a delay before focusing on the moon
-                    } else if (lastPickedMesh && lastPickedMesh.name === "sun") {
-                        setTimeout(() => {
-                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the sun
-                            lightUpPlanet(lastPickedMesh); // Light up the sun
-                            showPopup(lastPickedMesh);
-                        }, 1000); // Add a delay before focusing on the sun
-                    } else {
-                        // Reset camera to sun if empty space is clicked
-                        camera.setTarget(BABYLON.Vector3.Zero());
-                        if (planetLight) {
-                            planetLight.dispose();
-                            planetLight = null;
-                            currentLitPlanet = null;
-                        }
-                    }
-                }
-            }
-        });
+        // Apply outline
+        mesh.renderOutline = true;
+        mesh.outlineWidth = 0.1;
+        mesh.outlineColor = BABYLON.Color3.Blue(); // Set the outline color to blue
     });
+
+    // Event listener for canvas click
+    let isDragging = false;
+    let mouseDown = false;
+    let lastPickedMesh = null; // Store the last picked mesh
+
+    canvas.addEventListener("mousedown", function (evt) {
+        mouseDown = true;
+        isDragging = false;
+    });
+
+    canvas.addEventListener("mousemove", function (evt) {
+        if (mouseDown) {
+            isDragging = true;
+        }
+    });
+
+    canvas.addEventListener("mouseup", function (evt) {
+        mouseDown = false;
+        if (!isDragging) {
+            handleCanvasClick(evt);
+        }
+        isDragging = false;
+    });
+
+    function handleCanvasClick(evt) {
+        pickResult = scene.pick(evt.clientX, evt.clientY);
+        if (pickResult.hit && pickResult.pickedMesh) {
+            targetPosition = pickResult.pickedPoint;
+            spaceship.lookAt(targetPosition);
+            particleSystem.start();
+
+            // Detach the ship from the planet when a new target is selected
+            detachShipFromPlanet(spaceship);
+
+            // Reset the hasArrived flag
+            hasArrived = false;
+
+            // Zoom out without smooth transition
+            camera.radius += 20;
+
+            // Check if the target is a planet, moon, or sun
+            if (pickResult.pickedMesh.name.startsWith("planet") || pickResult.pickedMesh.name.startsWith("moon") || pickResult.pickedMesh.name === "sun") {
+                lastPickedMesh = pickResult.pickedMesh; // Store the last picked mesh
+                startUpdatingTargetPosition(pickResult.pickedMesh);
+            } else {
+                lastPickedMesh = null; // Clear last picked mesh for unrecognized bodies
+                stopUpdatingTargetPosition();
+            }
+        }
+    }
+
+    // This click event ensures that handleCanvasClick is only called if there was no dragging
+    canvas.addEventListener("click", function (evt) {
+        if (!isDragging) {
+            handleCanvasClick(evt);
+        }
+    });
+
+
+    // Function to handle arrival and trigger popup
+    function onArrival() {
+        if (lastPickedMesh) {
+            camera.setTarget(lastPickedMesh.position);
+            showPopup(lastPickedMesh);
+            lastPickedMesh = null; // Clear the last picked mesh after triggering the popup
+        }
+    }
+
+    // Update your moveToTarget function to use onArrival callback
+    function moveToTarget(targetPos, arrivalCallback) {
+        targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
+        onArrivalCallback = arrivalCallback;
+        scene.registerBeforeRender(moveShip);
+    }
+
+// Attach Ship function
+function attachShipToPlanet(ship, planet) {
+    ship.parent = planet;
+    ship.position = BABYLON.Vector3.Zero(); // Reset the ship's position relative to the planet
+    console.log("Ship attached to planet:", planet.name); // Debug statement
+}
+
+// Detach ship function
+function detachShipFromPlanet(ship) {
+    if (ship.parent) {
+        const worldMatrix = ship.getWorldMatrix();
+        const worldPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), worldMatrix);
+        ship.parent = null;
+        ship.position = worldPosition;
+        console.log("Ship detached from planet"); // Debug statement
+    }
+}
+
+
+    // Function to handle spaceship movement and camera focus
+    scene.registerBeforeRender(function () {
+        if (targetPosition) {
+            const direction = targetPosition.subtract(spaceship.position).normalize();
+            const baseSpeed = 0.4; // Base speed of the ship
+            const adjustedSpeed = simulationSpeed > 1 ? baseSpeed * (1 + ((simulationSpeed - 1) / (9.1 - 1)) * (2.3 - 1)) : baseSpeed; // Adjust the speed only if simulation speed is above 1
+
+            spaceship.moveWithCollisions(direction.scale(adjustedSpeed)); // Adjust the speed as needed
+
+            // Use a precise distance check for arrival
+            const arrivalThreshold = 0.5; // Adjust the threshold as needed
+            if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < arrivalThreshold && !hasArrived) {
+                scene.unregisterBeforeRender(moveShip); // Stop moving the ship
+                targetPosition = null;
+                hasArrived = true; // Set the flag to indicate arrival
+                if (particleSystem) {
+                    particleSystem.stop();
+                }
+                if (lastPickedMesh) {
+                    attachShipToPlanet(spaceship, lastPickedMesh);
+                    setTimeout(() => {
+                        camera.setTarget(lastPickedMesh.position); // Set camera focus to the planet
+                        lightUpPlanet(lastPickedMesh); // Light up the planet
+                        showPopup(lastPickedMesh);
+                    }, 1000); // Add a delay before focusing on the planet
+                } else if (lastPickedMesh && lastPickedMesh.name.startsWith("moon")) {
+                    setTimeout(() => {
+                        attachShipToPlanet(spaceship, lastPickedMesh);
+                        camera.setTarget(lastPickedMesh.position); // Set camera focus to the moon
+                        lightUpPlanet(lastPickedMesh); // Light up the moon
+                        showPopup(lastPickedMesh);
+                    }, 1000); // Add a delay before focusing on the moon
+                } else if (lastPickedMesh && lastPickedMesh.name === "sun") {
+                    setTimeout(() => {
+                        camera.setTarget(lastPickedMesh.position); // Set camera focus to the sun
+                        lightUpPlanet(lastPickedMesh); // Light up the sun
+                        showPopup(lastPickedMesh);
+                    }, 1000); // Add a delay before focusing on the sun
+                } else {
+                    // Reset camera to sun if empty space is clicked
+                    camera.setTarget(BABYLON.Vector3.Zero());
+                    if (planetLight) {
+                        planetLight.dispose();
+                        planetLight = null;
+                        currentLitPlanet = null;
+                    }
+                }
+            }
+        }
+    });
+});
 
     // Background
     scene.clearColor = new BABYLON.Color3(0, 0, 0);
@@ -1077,6 +1089,19 @@ const createScene = function () {
 
 // Updated URL in loadModel function
 const asteroidUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/Asteroid2.glb";
+let asteroidModel; // Variable to store the asteroid model
+
+async function loadAsteroidModel(scene) {
+    if (!asteroidModel) {
+        const result = await BABYLON.SceneLoader.ImportMeshAsync("", asteroidUrl, "", scene);
+        asteroidModel = result.meshes[0];
+    }
+}
+
+// Function to load the asteroid mesh
+async function loadAsteroidModel(scene) {
+    return await loadModel(asteroidUrl, scene, 1); // Load with default scaling
+}
 
 // Handle window resize
 window.addEventListener("resize", () => {
@@ -1138,7 +1163,6 @@ window.addEventListener("load", function () {
     welcomeBtn.addEventListener("click", function () {
         welcomePopup.style.display = "none";
         mainContent.style.filter = "none";
-        document.getElementById("controls").style.display = 'flex'; // Show the controls once the welcome popup is closed
     });
 });
 
@@ -1148,7 +1172,9 @@ function startUpdatingTargetPosition(planet) {
         clearInterval(intervalId);
     }
     intervalId = setInterval(() => {
-        targetPosition = planet.position.clone();
+        if (targetPosition) {
+            targetPosition = planet.position.clone();
+        }
     }, updateInterval);
     hasArrived = false; // Reset the flag when starting to update target position
 }
@@ -1238,6 +1264,72 @@ function randomEvent() {
 ////////////////////////////////////
 let activeComet = null; // Variable to track the active comet
 
+// Function to create an explosion effect
+function createExplosionEffect(scene, position) {
+    const particleSystem = new BABYLON.ParticleSystem("explosion", 2000, scene);
+    particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
+
+    particleSystem.emitter = position;
+    particleSystem.minEmitBox = new BABYLON.Vector3(-1, -1, -1); 
+    particleSystem.maxEmitBox = new BABYLON.Vector3(1, 1, 1); 
+
+    particleSystem.color1 = new BABYLON.Color4(1, 0.5, 0, 1.0);
+    particleSystem.color2 = new BABYLON.Color4(1, 0, 0, 1.0);
+    particleSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
+
+    particleSystem.minSize = 0.1;
+    particleSystem.maxSize = 1.0;
+
+    particleSystem.minLifeTime = 0.2;
+    particleSystem.maxLifeTime = 0.5;
+
+    particleSystem.emitRate = 5000;
+
+    particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
+
+    particleSystem.gravity = new BABYLON.Vector3(0, 0, 0);
+
+    particleSystem.direction1 = new BABYLON.Vector3(-1, -1, -1);
+    particleSystem.direction2 = new BABYLON.Vector3(1, 1, 1);
+
+    particleSystem.minAngularSpeed = 0;
+    particleSystem.maxAngularSpeed = Math.PI;
+
+    particleSystem.minEmitPower = 1;
+    particleSystem.maxEmitPower = 10;
+    particleSystem.updateSpeed = 0.01;
+
+    particleSystem.start();
+
+    // Stop the particle system after 1 second and dispose it properly
+    setTimeout(() => {
+        particleSystem.stop();
+        particleSystem.dispose();
+        console.log("Explosion effect disposed");
+    }, 1000);
+}
+
+// Function to handle collision with the sun
+function checkCometCollision(comet, sun, scene) {
+    const checkCollision = () => {
+        if (comet && sun) {
+            const distance = BABYLON.Vector3.Distance(comet.position, sun.position);
+            const sunRadius = 10; // Sun radius is half the diameter
+
+            if (distance < sunRadius) {
+                const explosionPosition = sun.position.add(comet.position.subtract(sun.position).normalize().scale(sunRadius));
+                createExplosionEffect(scene, explosionPosition);
+                comet.dispose(); // Destroy the comet
+                activeComet = null; // Reset the active comet
+                console.log("Comet hit the sun and was destroyed");
+                scene.unregisterBeforeRender(checkCollision); // Unregister the render loop for collision check
+                setTimeout(triggerCometEvent, 20000); // Reset the comet event after 20 seconds
+            }
+        }
+    };
+    scene.registerBeforeRender(checkCollision);
+}
+
 // Function to create the comet with asteroid mesh and blue tint
 async function createComet(scene) {
     if (activeComet) {
@@ -1299,6 +1391,7 @@ async function createComet(scene) {
         tailSystem.start();
 
         activeComet = cometMesh;
+        checkCometCollision(activeComet, sun, scene); // Check for collision with the sun
         console.log("Comet created");
         return cometMesh;
     } catch (error) {
@@ -1321,12 +1414,12 @@ function animateComet(comet, scene) {
     const startY = (Math.random() * 20) - 10; // Small vertical variation
     const startZ = (Math.random() * 40) - 20; // Small depth variation
 
-    const endX = -startX;
-    const endY = (Math.random() * 20) - 10; // Small vertical variation
-    const endZ = (Math.random() * 40) - 20; // Small depth variation
+    const endX = -startX + (Math.random() * 40 - 20); // Increased horizontal variation
+    const endY = (Math.random() * 60) - 30; // Increased vertical variation
+    const endZ = (Math.random() * 80) - 40; // Increased depth variation
 
     const startPosition = new BABYLON.Vector3(startX, startY, startZ);
-    const endPosition = new BABYLON.Vector3(endX, endY, endZ);
+    const endPosition = new BABYLON.Vector3(endX, endY, endZ); // Increased randomization
 
     comet.position = startPosition;
 
@@ -1383,9 +1476,12 @@ function randomEvent() {
 // Start the random events
 randomEvent();
 
-// Add this function to update the text
+// Update slider text
 function updateSliderText(value) {
     const speedFactor = (value / 100) * 0.9 + 0.1; // Same mapping formula
     const speedText = speedFactor.toFixed(1) + "x"; // Format to 1 decimal place
     document.getElementById("speedDisplay").innerText = speedText;
+
+    // Log the slider text for debugging
+    console.log(`Speed Display Text: ${speedText}`);
 }
