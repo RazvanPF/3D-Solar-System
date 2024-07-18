@@ -19,17 +19,12 @@ let sun; // Declare sun globally
 let baseTime = Date.now();
 let lastPickedMesh = null;
 let orbitMeshes = [];
-
-// Create a function to update the time scale based on the slider value
 let simulationSpeed = 1;
 
 function updateSimulationSpeed(sliderValue) {
     // Map slider value (1 to 1000) to simulation speed (0.1 to 9.1)
     simulationSpeed = ((sliderValue - 1) / 999) * 9.0 + 0.1;
     updateSliderText(sliderValue);
-
-    // Log the updated simulation speed
-    console.log(`Updated Simulation Speed: ${simulationSpeed}`);
 }
 
 const createScene = function () {
@@ -89,7 +84,7 @@ const createScene = function () {
         console.log(`New Simulation Speed: ${simulationSpeed}`);
     });
 
-    // Call updateSliderText to set the initial value
+    // updateSliderText to set the initial value
     updateSliderText(speedSlider.value);
 
     // Set initial simulation speed to 1.0 (normal speed)
@@ -116,12 +111,12 @@ const createScene = function () {
     sun.position = new BABYLON.Vector3(0, 0, 0);
     sun.checkCollisions = true; // Enable collision detection for the sun
 
-    // Step 3: Create and Configure the Glow Layer
+    //Glow Layer
     const glowLayer = new BABYLON.GlowLayer("glow", scene);
     glowLayer.intensity = 1.5; // Adjust intensity as needed
     glowLayer.addIncludedOnlyMesh(sun);
 
-    // Function to create sun rays
+    //Create sun rays
     function createSunRays(scene, sun) {
         const sunRays = new BABYLON.VolumetricLightScatteringPostProcess('godrays', 1.0, scene.activeCamera, sun, 100, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false);
         sunRays.exposure = 0.3;
@@ -138,6 +133,7 @@ const createScene = function () {
     sunLight.intensity = 2; // Set the intensity of the light
 
     // ASTEROIDS //
+    ///////////////
 
     // Asteroid belts constants
     const startButton = document.getElementById('welcomeBtn');
@@ -147,7 +143,7 @@ const createScene = function () {
     let mainAsteroids = [];
     let kuiperAsteroids = [];
 
-    // Function to load a model using the GLB URL
+    // Load a model using the GLB URL
     function loadModel(url, scene, scaling = 1) {
         return new Promise((resolve, reject) => {
             BABYLON.SceneLoader.ImportMesh("", url, "", scene, function (meshes) {
@@ -177,11 +173,11 @@ const createScene = function () {
         });
     }
 
-    // Function to create an asteroid belt
+    // Create an asteroid belt
     async function createAsteroidBelt(scene, innerRadius, outerRadius, numAsteroids, yRange, progressCallback) {
         const asteroidPromises = [];
         for (let i = 0; i < numAsteroids; i++) {
-            asteroidPromises.push(loadModel(asteroidUrl, scene, 0.8).finally(progressCallback)); // Adjust the scaling as needed
+            asteroidPromises.push(loadModel(asteroidUrl, scene, 0.8).finally(progressCallback)); // scaling
         }
 
         const asteroidModels = await Promise.all(asteroidPromises);
@@ -227,7 +223,7 @@ const createScene = function () {
                 showDetailsPopup(asteroid);
             }));
 
-            // Correctly add asteroids to the light
+            // Add asteroids to the light
             const asteroidLight = scene.getLightByName("asteroidLight");
             if (asteroidLight) {
                 asteroid.getChildMeshes().forEach(mesh => {
@@ -240,7 +236,7 @@ const createScene = function () {
         return asteroids;
     }
 
-    // Function to create the asteroid belt between Mars and Jupiter
+    // Create the asteroid belt between Mars and Jupiter
     async function createMainAsteroidBelt(scene, progressCallback) {
         const innerRadius = 55;
         const outerRadius = 60; // Reduced outer radius to keep the belt between Mars and Jupiter
@@ -248,21 +244,21 @@ const createScene = function () {
         const yRange = 5; // Reduced thickness for a more ring-like shape
 
         mainAsteroids = await createAsteroidBelt(scene, innerRadius, outerRadius, numAsteroids, yRange, progressCallback);
-        animateAsteroids(mainAsteroids, 0.00005); // Adjust speed as necessary
+        animateAsteroids(mainAsteroids, 0.00005); // Speed
     }
 
-    // Function to create the Kuiper Belt beyond Neptune
+    // Create the Kuiper Belt beyond Neptune
     async function createKuiperBelt(scene, progressCallback) {
         const innerRadius = 150;
-        const outerRadius = 180; // Slightly reduced outer radius
-        const numAsteroids = 300; // Increased number of asteroids
-        const yRange = 5; // Adjust as needed for thickness
+        const outerRadius = 180; // Outer radius
+        const numAsteroids = 300; // Number of asteroids
+        const yRange = 5; // For thickness
 
         kuiperAsteroids = await createAsteroidBelt(scene, innerRadius, outerRadius, numAsteroids, yRange, progressCallback);
         animateAsteroids(kuiperAsteroids, 0.00001); // Adjust speed as necessary
     }
 
-    // Function to animate asteroids orbiting around the sun
+    // FAnimate asteroids orbiting around the sun
     function animateAsteroids(asteroids, speed) {
         scene.registerBeforeRender(() => {
             const deltaTime = engine.getDeltaTime() * speed * simulationSpeed; // Speed adjustment with simulation speed
@@ -276,7 +272,7 @@ const createScene = function () {
         });
     }
 
-    // Function to update the progress bar
+    // Update the progress bar
     function updateProgressBar(progress) {
         progressBar.style.width = `${progress}%`;
         progressBar.textContent = `${Math.round(progress)}%`;
@@ -285,9 +281,9 @@ const createScene = function () {
         }
     }
 
-    // Function to create the asteroid belts and update the progress bar
+    // Create the asteroid belts and update the progress bar
     async function createAsteroidBelts(scene) {
-        const totalAsteroids = 500; // Total number of asteroids in both belts
+        const totalAsteroids = 500; // Total number of asteroids in both belts !IMPORTANT FOR LOADING PROGRESS BAR TIME, ADJUST IF ASTEROID NUMBERS WERE CHANGED!!!
         let loadedAsteroids = 0;
 
         const progressCallback = () => {
@@ -305,7 +301,7 @@ const createScene = function () {
         startButton.style.cursor = ''; // Reset the cursor
     }
 
-    // Call the function to create asteroid belts
+    // Create asteroid belts
     createAsteroidBelts(scene).then(() => {
     }).catch((error) => {
         console.error("Failed to create asteroid belts:", error);
@@ -317,8 +313,8 @@ const createScene = function () {
         document.getElementById('renderCanvas').classList.remove('blur');
     });
 
-    // Add an invisible mesh around the Sun to extend the clickable area (smaller size for closer interactions)
-    const invisibleSun = BABYLON.MeshBuilder.CreateSphere("invisibleSun", { diameter: 21 }, scene); // Adjust diameter as needed
+    // Add an invisible mesh around the Sun to extend the clickable area
+    const invisibleSun = BABYLON.MeshBuilder.CreateSphere("invisibleSun", { diameter: 21 }, scene); // diameter
     invisibleSun.visibility = 0; // Make it invisible
     invisibleSun.position = sun.position; // Ensure it is at the same position as the sun
 
@@ -339,14 +335,14 @@ const createScene = function () {
         });
     }));
 
-    // Function to move the ship to the target position
+    // Move the ship to the target position
     function moveToTarget(targetPos, arrivalCallback) {
         targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
         onArrivalCallback = arrivalCallback;
         scene.registerBeforeRender(moveShip);
     }
 
-    // Function to move the ship to the target position
+    // Move the ship to the target position 2
     function moveShip() {
         if (targetPosition) {
             const direction = targetPosition.subtract(spaceship.position).normalize();
@@ -356,7 +352,7 @@ const createScene = function () {
             spaceship.moveWithCollisions(direction.scale(adjustedSpeed)); // Adjust the speed as needed
 
             // Use a precise distance check for arrival
-            const arrivalThreshold = 0.5; // Adjust the threshold as needed
+            const arrivalThreshold = 0.5; //threshold 
             if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < arrivalThreshold) {
                 scene.unregisterBeforeRender(moveShip); // Stop moving the ship
                 targetPosition = null;
@@ -385,9 +381,9 @@ const createScene = function () {
             size: 1,
             distance: 20,
             orbitSpeed: 0.0001,
-            rotationSpeed: 0.02, // Rotation speed around own axis
+            rotationSpeed: 0.02, 
             moons: [],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Venus",
@@ -395,9 +391,9 @@ const createScene = function () {
             size: 1.2,
             distance: 30,
             orbitSpeed: 0.0002,
-            rotationSpeed: 0.02, // Rotation speed around own axis
+            rotationSpeed: 0.02, 
             moons: [],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Earth",
@@ -405,11 +401,11 @@ const createScene = function () {
             size: 1.3,
             distance: 40,
             orbitSpeed: 0.00015,
-            rotationSpeed: 0.4, // Rotation speed around own axis
+            rotationSpeed: 0.4, 
             moons: [
-                { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Moon3D.jpg", type: "moon" } // Tagging as a moon
+                { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Moon3D.jpg", type: "moon" } 
             ],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Mars",
@@ -417,12 +413,12 @@ const createScene = function () {
             size: 1.1,
             distance: 50,
             orbitSpeed: 0.0001,
-            rotationSpeed: 0.2, // Rotation speed around own axis
+            rotationSpeed: 0.2, 
             moons: [
-                { name: "Phobos", size: 0.1, distance: 2, orbitSpeed: 0.5, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Phobos3D.jpg", type: "moon" }, // Tagging as a moon
-                { name: "Deimos", size: 0.1, distance: 3, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Deimos3D.jpg", type: "moon" } // Tagging as a moon
+                { name: "Phobos", size: 0.1, distance: 2, orbitSpeed: 0.5, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Phobos3D.jpg", type: "moon" }, 
+                { name: "Deimos", size: 0.1, distance: 3, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Deimos3D.jpg", type: "moon" } 
             ],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Jupiter",
@@ -430,14 +426,14 @@ const createScene = function () {
             size: 2.8,
             distance: 70,
             orbitSpeed: 0.0001,
-            rotationSpeed: 0.1, // Rotation speed around own axis
+            rotationSpeed: 0.1, 
             moons: [
-                { name: "Io", size: 0.3, distance: 4, orbitSpeed: 0.5, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/IO3D.jpg", type: "moon" }, // Tagging as a moon
-                { name: "Europa", size: 0.3, distance: 5, orbitSpeed: 0.6, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Europa3D.jpg", type: "moon" }, // Tagging as a moon
-                { name: "Ganymede", size: 0.3, distance: 6, orbitSpeed: 0.45, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Ganymede.jpg", type: "moon" }, // Tagging as a moon
-                { name: "Callisto", size: 0.3, distance: 7, orbitSpeed: 0.6, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Callisto3D.jpg", type: "moon" } // Tagging as a moon
+                { name: "Io", size: 0.3, distance: 4, orbitSpeed: 0.5, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/IO3D.jpg", type: "moon" }, 
+                { name: "Europa", size: 0.3, distance: 5, orbitSpeed: 0.6, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Europa3D.jpg", type: "moon" },
+                { name: "Ganymede", size: 0.3, distance: 6, orbitSpeed: 0.45, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Ganymede.jpg", type: "moon" }, 
+                { name: "Callisto", size: 0.3, distance: 7, orbitSpeed: 0.6, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Callisto3D.jpg", type: "moon" } 
             ],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Saturn",
@@ -445,11 +441,11 @@ const createScene = function () {
             size: 2.2,
             distance: 90,
             orbitSpeed: 0.00005,
-            rotationSpeed: 0.2, // Rotation speed around own axis
+            rotationSpeed: 0.2, 
             moons: [
-                { name: "Titan", size: 0.4, distance: 6, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titan3D.jpg", type: "moon" } // Tagging as a moon
+                { name: "Titan", size: 0.4, distance: 6, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titan3D.jpg", type: "moon" } 
             ],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Uranus",
@@ -457,13 +453,13 @@ const createScene = function () {
             size: 2,
             distance: 110,
             orbitSpeed: 0.00005,
-            rotationSpeed: 0.2, // Rotation speed around own axis
+            rotationSpeed: 0.2, 
             moons: [
-                { name: "Titania", size: 0.4, distance: 5, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titania3D.jpg", type: "moon" }, // Tagging as a moon
-                { name: "Oberon", size: 0.4, distance: 7, orbitSpeed: 0.6, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Oberon3Dv2.jpg", type: "moon" }, // Tagging as a moon
-                { name: "Miranda", size: 0.3, distance: 4, orbitSpeed: 0.5, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Miranda3D.jpg", type: "moon" } // Tagging as a moon
+                { name: "Titania", size: 0.4, distance: 5, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Titania3D.jpg", type: "moon" }, 
+                { name: "Oberon", size: 0.4, distance: 7, orbitSpeed: 0.6, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Oberon3Dv2.jpg", type: "moon" }, 
+                { name: "Miranda", size: 0.3, distance: 4, orbitSpeed: 0.5, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Miranda3D.jpg", type: "moon" } 
             ],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         {
             name: "Neptune",
@@ -471,11 +467,11 @@ const createScene = function () {
             size: 1.9,
             distance: 130,
             orbitSpeed: 0.000025,
-            rotationSpeed: 0.2, // Rotation speed around own axis
+            rotationSpeed: 0.2,
             moons: [
-                { name: "Triton", size: 0.4, distance: 5, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Triton3D.jpg", type: "moon" } // Tagging as a moon
+                { name: "Triton", size: 0.4, distance: 5, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Triton3D.jpg", type: "moon" } 
             ],
-            type: "planet" // Tagging as a planet
+            type: "planet" 
         },
         // Dwarf Planets
         {
@@ -485,10 +481,10 @@ const createScene = function () {
             distance: 35,
             orbitSpeed: 0.0002,
             rotationSpeed: 0.2,
-            inclination: 10, // degrees
+            inclination: 10,
             eccentricity: 0.08,
             moons: [],
-            type: "dwarfPlanet" // Tagging as a dwarf planet
+            type: "dwarfPlanet" 
         },
         {
             name: "Pluto",
@@ -497,12 +493,12 @@ const createScene = function () {
             distance: 160,
             orbitSpeed: 0.000025,
             rotationSpeed: 0.2,
-            inclination: 17, // degrees
+            inclination: 17, 
             eccentricity: 0.25,
             moons: [
                 { name: "Charon", size: 0.45, distance: 3, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Charon3D.jpg", type: "moon" }
             ],
-            type: "dwarfPlanet" // Tagging as a dwarf planet
+            type: "dwarfPlanet" 
         },
         {
             name: "Haumea",
@@ -511,10 +507,10 @@ const createScene = function () {
             distance: 200,
             orbitSpeed: 0.000025,
             rotationSpeed: 0.2,
-            inclination: 28, // degrees
+            inclination: 28,
             eccentricity: 0.19,
             moons: [],
-            type: "dwarfPlanet" // Tagging as a dwarf planet
+            type: "dwarfPlanet" 
         },
         {
             name: "Makemake",
@@ -523,10 +519,10 @@ const createScene = function () {
             distance: 210,
             orbitSpeed: 0.000025,
             rotationSpeed: 0.2,
-            inclination: 29, // degrees
+            inclination: 29,
             eccentricity: 0.16,
             moons: [],
-            type: "dwarfPlanet" // Tagging as a dwarf planet
+            type: "dwarfPlanet" 
         },
         {
             name: "Eris",
@@ -535,10 +531,10 @@ const createScene = function () {
             distance: 230,
             orbitSpeed: 0.000025,
             rotationSpeed: 0.2,
-            inclination: 44, // degrees
+            inclination: 44,
             eccentricity: 0.44,
             moons: [],
-            type: "dwarfPlanet" // Tagging as a dwarf planet
+            type: "dwarfPlanet"
         }
     ];
     
@@ -562,7 +558,7 @@ const createScene = function () {
         });
     };
 
-    // Function to toggle visibility of orbits
+    // Toggle visibility of orbits
 const toggleOrbitsVisibility = () => {
     const hideOrbitsCheckbox = document.getElementById("hideOrbitsCheckbox");
     hideOrbitsCheckbox.addEventListener("change", function () {
@@ -573,7 +569,7 @@ const toggleOrbitsVisibility = () => {
     });
 };
     
-    // Function to create the 3D path for an inclined and eccentric orbit
+    // Create the 3D path for an inclined and eccentric orbit
     function createOrbitPath(distance, eccentricity, inclination, scene) {
         const points = [];
         const numPoints = 128;
@@ -595,7 +591,7 @@ const toggleOrbitsVisibility = () => {
         const planetMaterial = new BABYLON.StandardMaterial(`planetMaterial${index}`, scene);
         planetMaterial.diffuseTexture = new BABYLON.Texture(data.texture, scene);
         planet.material = planetMaterial;
-        planetMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
+        planetMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
         planet.position = new BABYLON.Vector3(data.distance, 0, 0);
     
         // Set initial position of the planet
@@ -631,7 +627,7 @@ const toggleOrbitsVisibility = () => {
                 ring.material = ringMaterial;
     
                 // Rotate the ring to be horizontal and position it correctly
-                ring.rotation.x = Math.PI / 2; // Correct rotation for horizontal alignment
+                ring.rotation.x = Math.PI / 2; 
                 ring.rotation.z = Math.PI; // Flip the ring upside down
                 ring.position.y = planet.position.y; // Align with the planet's position
     
@@ -657,7 +653,7 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             if (isChecked) {
                 stopLensFlareEffect(body.mesh);
             } else {
-                if (!body.visited) {  // Ensure that already visited planets do not re-enable the effect
+                if (!body.visited) {  // NOT WORKING FOR SOME REASON, should disable highlight effect on visited dwarf planets.
                     createLensFlareEffect(scene, body.mesh);
                 }
             }
@@ -773,7 +769,7 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
     
     // Spaceship
     let spaceship;
-    let particleSystem; // Move the particleSystem declaration here
+    let particleSystem; 
     
     BABYLON.SceneLoader.ImportMesh("", "https://models.babylonjs.com/", "ufo.glb", scene, function (meshes) {
         spaceship = meshes[0];
@@ -885,14 +881,14 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             }
         }
     
-        // This click event ensures that handleCanvasClick is only called if there was no dragging
+        // Click event that ensures that handleCanvasClick is only called if there was no dragging
         canvas.addEventListener("click", function (evt) {
             if (!isDragging) {
                 handleCanvasClick(evt);
             }
         });
     
-        // Function to handle arrival and trigger popup
+        // Handle arrival and trigger popup
         function onArrival() {
             if (lastPickedMesh) {
                 camera.setTarget(lastPickedMesh.position);
@@ -901,7 +897,7 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             }
         }
     
-        // Update your moveToTarget function to use onArrival callback
+        // Update moveToTarget function to use onArrival callback
         function moveToTarget(targetPos, arrivalCallback) {
             targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
             onArrivalCallback = arrivalCallback;
@@ -927,17 +923,17 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             }
         }
     
-        // Function to handle spaceship movement and camera focus
+        // Handle spaceship movement and camera focus
         scene.registerBeforeRender(function () {
             if (targetPosition) {
                 const direction = targetPosition.subtract(spaceship.position).normalize();
                 const baseSpeed = 0.4; // Base speed of the ship
                 const adjustedSpeed = simulationSpeed > 1 ? baseSpeed * (1 + ((simulationSpeed - 1) / (9.1 - 1)) * (2.3 - 1)) : baseSpeed; // Adjust the speed only if simulation speed is above 1
     
-                spaceship.moveWithCollisions(direction.scale(adjustedSpeed)); // Adjust the speed as needed
+                spaceship.moveWithCollisions(direction.scale(adjustedSpeed)); // speed adjustment
     
                 // Use a precise distance check for arrival
-                const arrivalThreshold = 0.5; // Adjust the threshold as needed
+                const arrivalThreshold = 0.5; //threshold
                 if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < arrivalThreshold && !hasArrived) {
                     scene.unregisterBeforeRender(moveShip); // Stop moving the ship
                     targetPosition = null;
@@ -966,7 +962,7 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
                             showPopup(lastPickedMesh);
                         }, 1000); // Add a delay before focusing on the sun
                     } else {
-                        // Reset camera to sun if empty space is clicked
+                        // Reset camera to sun if empty space is clicked - NOT really working, should remove in future updates
                         camera.setTarget(BABYLON.Vector3.Zero());
                         if (planetLight) {
                             planetLight.dispose();
@@ -1202,7 +1198,7 @@ starParticles.start();
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Eris2D.png"
             }
         };
-
+        // Mesh name to planet name for later use
         const meshNameToPlanetName = {
             "planet0": "Mercury",
             "planet1": "Venus",
@@ -1236,7 +1232,8 @@ starParticles.start();
 
         const planetName = meshNameToPlanetName[mesh.name];
         const planetInfo = planetDescriptions[planetName] || {};
-    
+        
+        //Popup info
         const info = `
             <div style="text-align: center;">
                 <h1>You discovered</h1>
@@ -1265,18 +1262,13 @@ starParticles.start();
         event.preventDefault();
     });
     
-    // Function to disable right-click drag behavior
+    // Disable right-click drag behavior
     const disableRightClickDrag = () => {
         canvas.oncontextmenu = (e) => {
             e.preventDefault();
         };
-    
-        // Remove right-click event listeners
-        canvas.removeEventListener("mousedown", onRightMouseDown);
-        canvas.removeEventListener("mouseup", onRightMouseUp);
-        canvas.removeEventListener("mousemove", onRightMouseMove);
     };
-    
+    // Right click events
     const onRightMouseDown = (event) => {
         if (event.button === 2) { // Right mouse button
             event.preventDefault();
@@ -1299,17 +1291,15 @@ starParticles.start();
     canvas.addEventListener("mousedown", onRightMouseDown);
     canvas.addEventListener("mouseup", onRightMouseUp);
     canvas.addEventListener("mousemove", onRightMouseMove);
-    
-    // Call the function to disable right-click drag behavior
-    disableRightClickDrag();
 
+    //Before returning the scene
     createRings(scene);
     toggleOrbitsVisibility();
     
     return scene;
     };
     
-    // Updated URL in loadModel function
+    // Asteroid Load Model GLB
     const asteroidUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/Asteroid2.glb";
     let asteroidModel; // Variable to store the asteroid model
     
@@ -1320,7 +1310,7 @@ starParticles.start();
         }
     }
     
-    // Function to load the asteroid mesh
+    // Load the asteroid mesh
     async function loadAsteroidModel(scene) {
         return await loadModel(asteroidUrl, scene, 1); // Load with default scaling
     }
@@ -1360,7 +1350,7 @@ starParticles.start();
     // Main code to create and render the scene
     const scene = createScene();
     
-    // Adjust the render loop to consider the simulation speed
+    // Consider the simulation speed in redner loop
     let lastTime = performance.now();
     
     engine.runRenderLoop(() => {
@@ -1374,7 +1364,7 @@ starParticles.start();
         scene.render();
     });
     
-    // Welcome Popup:
+    // Welcome Popup
     window.addEventListener("load", function () {
         // Display the welcome popup
         const welcomePopup = document.getElementById("welcomePopup");
@@ -1393,7 +1383,7 @@ starParticles.start();
         });
     });
     
-    // Function to start updating target position
+    // Start updating target position
     function startUpdatingTargetPosition(planet) {
         if (intervalId) {
             clearInterval(intervalId);
@@ -1406,7 +1396,7 @@ starParticles.start();
         hasArrived = false; // Reset the flag when starting to update target position
     }
     
-    // Function to stop updating target position
+    // Stop updating target position
     function stopUpdatingTargetPosition() {
         if (intervalId) {
             clearInterval(intervalId);
@@ -1418,25 +1408,25 @@ starParticles.start();
 // DYNAMIC EVENTS - SOLAR FLARE
 ////////////////////////////////////
 
-// Function to create solar flares with smoke texture
+// Create solar flares with smoke texture
 function createSolarFlare(scene, sun) {
-    const flareSystem = new BABYLON.ParticleSystem("flare", 2000, scene); // Increased number of particles
+    const flareSystem = new BABYLON.ParticleSystem("flare", 2000, scene); // number of particles
     flareSystem.particleTexture = new BABYLON.Texture("https://raw.githubusercontent.com/razvanpf/Images/main/smoke.png", scene);
 
-    flareSystem.minEmitBox = new BABYLON.Vector3(-2, -2, -2); // Smaller emit box
+    flareSystem.minEmitBox = new BABYLON.Vector3(-2, -2, -2); // emit box
     flareSystem.maxEmitBox = new BABYLON.Vector3(2, 2, 2);
 
     flareSystem.color1 = new BABYLON.Color4(1, 0.6, 0, 1.0);
     flareSystem.color2 = new BABYLON.Color4(1, 0.3, 0, 1.0);
     flareSystem.colorDead = new BABYLON.Color4(0, 0, 0, 0.0);
 
-    flareSystem.minSize = 1.0; // Increased size for smokey effect
+    flareSystem.minSize = 1.0; // Size
     flareSystem.maxSize = 3.0;
 
     flareSystem.minLifeTime = 0.3;
-    flareSystem.maxLifeTime = 0.7; // Increased lifetime for more visible effect
+    flareSystem.maxLifeTime = 0.7; // lifetime
 
-    flareSystem.emitRate = 200; // Increased emit rate
+    flareSystem.emitRate = 200; // emit rate
 
     flareSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
 
@@ -1458,7 +1448,7 @@ function createSolarFlare(scene, sun) {
 // Add the solar flare effect
 const flareSystem = createSolarFlare(scene, sun);
 
-// Function to randomize the emitter position
+// Randomize the emitter position
 function randomizeEmitterPosition(flareSystem, sun) {
     const positions = [
         new BABYLON.Vector3(sun.position.x + 10.5, sun.position.y, sun.position.z), // Right
@@ -1469,7 +1459,7 @@ function randomizeEmitterPosition(flareSystem, sun) {
     flareSystem.emitter = positions[randomIndex];
 }
 
-// Function to trigger the solar flare
+// Trigger the solar flare
 function triggerSolarFlare() {
     randomizeEmitterPosition(flareSystem, sun);
     flareSystem.start();
@@ -1478,10 +1468,10 @@ function triggerSolarFlare() {
     }, 3000); // Flare lasts for 3 seconds
 }
 
-// Test the solar flare 10 seconds after loading the page
+// Test the solar flare 10 seconds after loading the page - Should remove later or keep it , idk.
 setTimeout(triggerSolarFlare, 10000);
 
-// Function to handle random dynamic events
+// Random dynamic event for solar flare
 function randomSolarFlareEvent() {
     const randomTime = Math.random() * 30000; // Random time between 0 and 30 seconds
     setTimeout(() => {
@@ -1494,9 +1484,9 @@ randomSolarFlareEvent();
 
 // DYNAMIC EVENTS - COMET PASSING BY
 ////////////////////////////////////
-let activeComet = null; // Variable to track the active comet
+let activeComet = null; // To track the active comet
 
-// Function to create an explosion effect
+// Create an explosion effect
 function createExplosionEffect(scene, position) {
     const particleSystem = new BABYLON.ParticleSystem("explosion", 2000, scene);
     particleSystem.particleTexture = new BABYLON.Texture("https://assets.babylonjs.com/textures/flare.png", scene);
@@ -1533,7 +1523,7 @@ function createExplosionEffect(scene, position) {
 
     particleSystem.start();
 
-    // Stop the particle system after 1 second and dispose it properly
+    // Stop particle system after 1 second and dispose it properly
     setTimeout(() => {
         particleSystem.stop();
         particleSystem.dispose();
@@ -1541,7 +1531,7 @@ function createExplosionEffect(scene, position) {
     }, 1000);
 }
 
-// Function to handle collision with the sun
+// Handle collision with the sun
 function checkCometCollision(comet, sun, scene) {
     const checkCollision = () => {
         if (comet && sun) {
@@ -1562,7 +1552,7 @@ function checkCometCollision(comet, sun, scene) {
     scene.registerBeforeRender(checkCollision);
 }
 
-// Function to create the comet with asteroid mesh and blue tint
+// Create the comet with asteroid mesh and blue tint
 async function createComet(scene) {
     if (activeComet) {
         console.log("Active comet already exists.");
@@ -1597,13 +1587,13 @@ async function createComet(scene) {
         tailSystem.color2 = new BABYLON.Color4(0.2, 0.2, 0.8, 1.0);
         tailSystem.colorDead = new BABYLON.Color4(0, 0, 1, 0.0);
 
-        tailSystem.minSize = 0.2; // Reduced size
-        tailSystem.maxSize = 0.4; // Reduced size
+        tailSystem.minSize = 0.2; 
+        tailSystem.maxSize = 0.4; 
 
-        tailSystem.minLifeTime = 0.1; // Reduced lifetime
-        tailSystem.maxLifeTime = 0.3; // Reduced lifetime
+        tailSystem.minLifeTime = 0.1; 
+        tailSystem.maxLifeTime = 0.3; 
 
-        tailSystem.emitRate = 10000; // Increased emit rate
+        tailSystem.emitRate = 10000; 
 
         tailSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ONEONE;
 
@@ -1615,8 +1605,8 @@ async function createComet(scene) {
         tailSystem.minAngularSpeed = 0;
         tailSystem.maxAngularSpeed = Math.PI;
 
-        tailSystem.minEmitPower = 1; // Decreased emit power
-        tailSystem.maxEmitPower = 2; // Decreased emit power
+        tailSystem.minEmitPower = 1; 
+        tailSystem.maxEmitPower = 2; 
         tailSystem.updateSpeed = 0.01;
 
         tailSystem.emitter = cometMesh; // Attach the tail to the comet
@@ -1632,7 +1622,7 @@ async function createComet(scene) {
     }
 }
 
-// Function to animate the comet through the solar system
+// Animate the comet through the solar system
 function animateComet(comet, scene) {
     if (!comet || !scene) {
         console.error("Comet or scene is not defined");
@@ -1641,7 +1631,7 @@ function animateComet(comet, scene) {
 
     const distance = 300;
 
-    // Ensure the comet travels horizontally through the solar system
+    // Comet travels horizontally through the solar system
     const startX = Math.random() < 0.5 ? -distance : distance;
     const startY = (Math.random() * 20) - 10; // Small vertical variation
     const startZ = (Math.random() * 40) - 20; // Small depth variation
@@ -1665,7 +1655,7 @@ function animateComet(comet, scene) {
 
     const keys = [
         { frame: 0, value: startPosition },
-        { frame: 300, value: endPosition } // Adjust frame count for speed
+        { frame: 300, value: endPosition } //Speed
     ];
 
     animation.setKeys(keys);
@@ -1675,26 +1665,21 @@ function animateComet(comet, scene) {
     scene.beginDirectAnimation(comet, [animation], 0, 300, false, 1, () => {
         comet.dispose(); // Remove comet after animation
         activeComet = null; // Reset the active comet
-        console.log("Comet animation completed and disposed");
     });
-
-    console.log("Comet animation started from", startPosition, "to", endPosition);
 }
 
-// Function to trigger the comet event
+// Trigger the comet event
 async function triggerCometEvent() {
     if (activeComet) {
-        console.log("An active comet is already present.");
         return; // Return if there's already an active comet
     }
     const comet = await createComet(scene);
     if (comet) {
         animateComet(comet, scene);
-        console.log("Comet event triggered");
     }
 }
 
-// Function to handle random dynamic events
+// Handle random dynamic events for Comet
 function randomCometEvent() {
     const randomTime = 20000; // 20 seconds
     setTimeout(() => {
@@ -1705,23 +1690,20 @@ function randomCometEvent() {
     }, randomTime);
 }
 
-// Start the random events
+// Start the random event for comet
 randomCometEvent();
 
 // Update slider text
 function updateSliderText(sliderValue) {
-    const speedFactor = ((sliderValue - 1) / 999) * 9.0 + 0.1; // Correct mapping formula
+    const speedFactor = ((sliderValue - 1) / 999) * 9.0 + 0.1; // This formula...My god...
     const speedText = speedFactor.toFixed(1) + "x"; // Format to 1 decimal place
     document.getElementById("speedDisplay").innerText = speedText;
-
-    // Log the slider text for debugging
-    console.log(`Speed Display Text: ${speedText}`);
 }
 
 // BLINKING LIGHTS
 //////////////////
 
-// Function to create a small lens flare effect above the north pole of the dwarf planets
+// Create a small lens flare effect above the north pole of the dwarf planets
 function createLensFlareEffect(scene, mesh) {
     if (!mesh.lensFlareSystem) {
         const lensFlareSystem = new BABYLON.LensFlareSystem(`lensFlareSystem_${mesh.name}`, mesh, scene);
@@ -1732,7 +1714,7 @@ function createLensFlareEffect(scene, mesh) {
         // Adjust the position to be above the north pole
         lensFlareSystem.position = mesh.position.add(new BABYLON.Vector3(0, mesh.scaling.y * 2, 0));
 
-        // Function to start the lens flare effect
+        // Start the lens flare effect
         const startLensFlare = () => {
             if (!mesh.blinking) return;
             console.log(`Starting lens flare for ${mesh.name} at position:`, lensFlareSystem.position);
@@ -1755,7 +1737,7 @@ function createLensFlareEffect(scene, mesh) {
     }
 }
 
-// Function to stop the lens flare effect
+// Stop the lens flare effect
 function stopLensFlareEffect(mesh) {
     if (mesh && mesh.lensFlareSystem && mesh.lensFlareInterval) {
         clearInterval(mesh.lensFlareInterval);
@@ -1768,7 +1750,7 @@ function stopLensFlareEffect(mesh) {
     }
 }
 
-// Function to add lens flare effects to dwarf planets
+// Add lens flare effects to dwarf planets
 function addLensFlareEffectsToDwarfPlanets(scene) {
     celestialBodies.forEach(body => {
         if (body.data.name === "Ceres" || body.data.name === "Pluto" || body.data.name === "Haumea" || body.data.name === "Makemake" || body.data.name === "Eris") {
@@ -1778,6 +1760,7 @@ function addLensFlareEffectsToDwarfPlanets(scene) {
 }
 
 // Disable blinking tooltip
+///////////////////////////
 
 // Tooltip logic
 const tooltip = document.getElementById('tooltip');
