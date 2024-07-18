@@ -27,6 +27,97 @@ function updateSimulationSpeed(sliderValue) {
     updateSliderText(sliderValue);
 }
 
+
+//Create Artifical satelites
+async function loadSatellites(scene, numSatellites = 5) {
+    console.log("Starting to load satellites...");
+    const satelliteUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/satelite.glb"; 
+
+    try {
+        // Load the satellite model
+        const satelliteModel = await BABYLON.SceneLoader.ImportMeshAsync("", satelliteUrl, "", scene);
+        const satelliteMesh = satelliteModel.meshes[0];
+        const satellites = [];
+
+        // Find the Earth mesh
+        const earthMesh = celestialBodies.find(body => body.data.name === "Earth").mesh;
+        if (!earthMesh) {
+            throw new Error("Earth mesh not found!");
+        }
+
+        for (let i = 0; i < numSatellites; i++) {
+            const satelliteInstance = satelliteMesh.clone(`satellite${i}`);
+
+            // Randomize the initial position around Earth
+            const angle = Math.random() * Math.PI * 2;
+            const distance = 1 + Math.random() * 0.5; // Closer to Earth
+            satelliteInstance.position = new BABYLON.Vector3(
+                earthMesh.position.x + distance * Math.cos(angle),
+                (Math.random() - 0.5) * 0.5, // Randomize the vertical position within a small range
+                earthMesh.position.z + distance * Math.sin(angle)
+            );
+
+            // Scale down the satellite to be smaller than the moon
+            satelliteInstance.scaling = new BABYLON.Vector3(0.05, 0.05, 0.05); // Reduced size
+
+            // Add emissive material to make the satellite visible
+            const satelliteMaterial = new BABYLON.StandardMaterial(`satelliteMaterial${i}`, scene);
+            satelliteMaterial.diffuseColor = new BABYLON.Color3(1, 1, 1); // White color
+            satelliteMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1); // Slight glow
+            satelliteInstance.material = satelliteMaterial;
+
+            // Add light to all child meshes of the satellite instance
+            satelliteInstance.getChildMeshes().forEach((childMesh, index) => {
+                const light = new BABYLON.PointLight(`light${i}_${index}`, new BABYLON.Vector3(0, 0, 0), scene);
+                light.parent = childMesh; // Attach the light to the child mesh
+                light.intensity = 2; // Adjust intensity as needed
+                light.diffuse = new BABYLON.Color3(1, 1, 1); // White light
+                light.specular = new BABYLON.Color3(1, 1, 1); // Specular color
+                light.includedOnlyMeshes = [childMesh]; // Only affect this child mesh
+            });
+
+            // Add to satellites array
+            satellites.push(satelliteInstance);
+        }
+
+        // Dispose of the original satellite mesh to prevent it from appearing in the scene
+        satelliteMesh.dispose();
+
+        // Log the satellites array for debugging
+        console.log("Satellites loaded and positioned:", satellites);
+
+        return satellites;
+    } catch (error) {
+        console.error("Failed to load satellites:", error);
+        return []; // Return an empty array on failure
+    }
+}
+
+// Animating satellites around Earth
+function animateSatellites(satellites, earthMesh) {
+    if (!satellites || satellites.length === 0) {
+        console.error("No satellites to animate.");
+        return;
+    }
+
+    scene.registerBeforeRender(() => {
+        const deltaTime = engine.getDeltaTime() * 0.001; // Default to 16ms if not defined
+
+        satellites.forEach((satellite, index) => {
+            // Calculate the angle and distance for orbit
+            const distance = 2 + Math.random(); // Fixed distance for stable orbit
+            const angle = (Date.now() * 0.001 + index * Math.PI / 2) % (2 * Math.PI); // Adjusted speed for faster orbit
+
+            // Update satellite position
+            satellite.position.x = earthMesh.position.x + 2 * Math.cos(angle); // Keep satellites closer to Earth
+            satellite.position.z = earthMesh.position.z + 2 * Math.sin(angle); // Keep satellites closer to Earth
+
+            // Add vertical movement for more dynamic orbits
+            satellite.position.y = earthMesh.position.y + Math.sin(angle) * 0.5;
+        });
+    });
+}
+
 const createScene = function () {
     const scene = new BABYLON.Scene(engine);
 
@@ -55,10 +146,8 @@ const createScene = function () {
     canvas.addEventListener("pointerdown", function (evt) {
         if (evt.button === 2) { // Right mouse button
             // Detach the camera from any attached body
-            console.log("Right mouse button down. Current target:", camera.getTarget());
             camera.setTarget(new BABYLON.Vector3(0, 0, 0));
             camera.lockedTarget = null; // Ensure locked target is detached
-            console.log("Camera target reset to Zero. New target:", camera.getTarget());
         }
     });
 
@@ -75,13 +164,7 @@ const createScene = function () {
     speedSlider.addEventListener("input", (event) => {
         const sliderValue = parseFloat(event.target.value);
     
-        // Log the slider value when the input event is fired
-        console.log(`Slider Input Value: ${sliderValue}`);
-    
         updateSimulationSpeed(sliderValue);
-    
-        // Log the new speed for debugging
-        console.log(`New Simulation Speed: ${simulationSpeed}`);
     });
 
     // updateSliderText to set the initial value
@@ -312,6 +395,7 @@ const createScene = function () {
         document.getElementById('welcomePopup').style.display = 'none';
         document.getElementById('renderCanvas').classList.remove('blur');
     });
+
 
     // Add an invisible mesh around the Sun to extend the clickable area
     const invisibleSun = BABYLON.MeshBuilder.CreateSphere("invisibleSun", { diameter: 21 }, scene); // diameter
@@ -907,7 +991,6 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
         function attachShipToPlanet(ship, planet) {
             ship.parent = planet;
             ship.position = BABYLON.Vector3.Zero();
-            console.log("Ship attached to planet:", planet.name);
             planet.visited = true; // Mark the planet as visited
         }
 
@@ -919,7 +1002,6 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
                 const worldPosition = BABYLON.Vector3.TransformCoordinates(BABYLON.Vector3.Zero(), worldMatrix);
                 ship.parent = null;
                 ship.position = worldPosition;
-                console.log("Ship detached from planet"); // Debug statement
             }
         }
     
@@ -1196,6 +1278,11 @@ starParticles.start();
                 name: "Eris",
                 description: "Eris is one of the largest known dwarf planets in this system and is sometimes referred to as the 'tenth planet'. The most massive dwarf planet, located in the scattered disc. Prime candidate for deep space mining.",
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Eris2D.png"
+            },
+            "Voyager": {
+                name: "Voyager",
+                description: "Voyager is a spacecraft that was launched by NASA to study the outer planets and beyond. It has now entered interstellar space, providing valuable data about the solar system's edge.",
+                image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Voyager2D.png"
             }
         };
         // Mesh name to planet name for later use
@@ -1227,7 +1314,8 @@ starParticles.start();
             "moon6_1": "Oberon",
             "moon6_2": "Miranda",
             "moon7_0": "Triton",
-            "moon9_0": "Charon"
+            "moon9_0": "Charon",
+            "Voyager": "Voyager"
         };
 
         const planetName = meshNameToPlanetName[mesh.name];
@@ -1295,6 +1383,18 @@ starParticles.start();
     //Before returning the scene
     createRings(scene);
     toggleOrbitsVisibility();
+
+    // Load and add satellites around Earth
+    loadSatellites(scene).then((satellites) => {
+        const earthMesh = celestialBodies.find(body => body.data.name === "Earth").mesh;
+        if (earthMesh) {
+            animateSatellites(satellites, earthMesh);
+        } else {
+            console.error("Earth mesh not found!");
+        }
+    }).catch((error) => {
+        console.error("Failed to load satellites:", error);
+    });
     
     return scene;
     };
@@ -1527,7 +1627,6 @@ function createExplosionEffect(scene, position) {
     setTimeout(() => {
         particleSystem.stop();
         particleSystem.dispose();
-        console.log("Explosion effect disposed");
     }, 1000);
 }
 
@@ -1543,7 +1642,6 @@ function checkCometCollision(comet, sun, scene) {
                 createExplosionEffect(scene, explosionPosition);
                 comet.dispose(); // Destroy the comet
                 activeComet = null; // Reset the active comet
-                console.log("Comet hit the sun and was destroyed");
                 scene.unregisterBeforeRender(checkCollision); // Unregister the render loop for collision check
                 setTimeout(triggerCometEvent, 20000); // Reset the comet event after 20 seconds
             }
@@ -1555,7 +1653,6 @@ function checkCometCollision(comet, sun, scene) {
 // Create the comet with asteroid mesh and blue tint
 async function createComet(scene) {
     if (activeComet) {
-        console.log("Active comet already exists.");
         return null; // Return if there's already an active comet
     }
 
@@ -1614,7 +1711,6 @@ async function createComet(scene) {
 
         activeComet = cometMesh;
         checkCometCollision(activeComet, sun, scene); // Check for collision with the sun
-        console.log("Comet created");
         return cometMesh;
     } catch (error) {
         console.error("Error creating comet:", error);
@@ -1717,7 +1813,6 @@ function createLensFlareEffect(scene, mesh) {
         // Start the lens flare effect
         const startLensFlare = () => {
             if (!mesh.blinking) return;
-            console.log(`Starting lens flare for ${mesh.name} at position:`, lensFlareSystem.position);
             lensFlareSystem.isEnabled = true;
             setTimeout(() => {
                 lensFlareSystem.isEnabled = false;
@@ -1770,19 +1865,15 @@ const closeBtn = document.getElementById('closeTooltipBtn');
 infoIcon.addEventListener('click', function (event) {
     event.stopPropagation(); // Prevent checkbox toggle
     const rect = infoIcon.getBoundingClientRect();
-    console.log(`Info icon position: ${JSON.stringify(rect)}`);
-    console.log(`Window scroll position: ${window.scrollX}, ${window.scrollY}`);
 
     // Force positioning
     tooltip.style.left = `${rect.left + window.scrollX - 100}px`; // Adjust the -100 value to move left
     tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 150}px`; // Adjust the -50 value to move up
 
-    console.log(`Tooltip position: ${tooltip.style.left}, ${tooltip.style.top}`);
     tooltip.classList.toggle('show');
-    console.log("Toggling tooltip");
 });
 
 closeBtn.addEventListener('click', function () {
     tooltip.classList.remove('show');
-    console.log("Closing tooltip");
 });
+
