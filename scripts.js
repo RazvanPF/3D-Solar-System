@@ -30,7 +30,6 @@ function updateSimulationSpeed(sliderValue) {
 
 //Create Artifical satelites
 async function loadSatellites(scene, numSatellites = 5) {
-    console.log("Starting to load satellites...");
     const satelliteUrl = "https://raw.githubusercontent.com/razvanpf/Images/main/satelite.glb"; 
 
     try {
@@ -82,9 +81,6 @@ async function loadSatellites(scene, numSatellites = 5) {
 
         // Dispose of the original satellite mesh to prevent it from appearing in the scene
         satelliteMesh.dispose();
-
-        // Log the satellites array for debugging
-        console.log("Satellites loaded and positioned:", satellites);
 
         return satellites;
     } catch (error) {
@@ -180,7 +176,6 @@ const createScene = function () {
 
     // Ensure the texture is loaded and applied
     sunMaterial.diffuseTexture = new BABYLON.Texture(sunTextureUrl, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
-        console.log("Sun texture loaded successfully.");
     }, (message) => {
         console.error("Failed to load sun texture:", message);
     });
@@ -457,6 +452,7 @@ const createScene = function () {
         sun.rotation.y -= baseSpeed * simulationSpeed * 0.1;
     });
 
+
     // Create and configure celestial bodies, planets, and moons
     const celestialData = [
         {
@@ -619,7 +615,16 @@ const createScene = function () {
             eccentricity: 0.44,
             moons: [],
             type: "dwarfPlanet"
-        }
+        },
+        {
+            name: "Voyager",
+            size: 0.5,
+            distance: 15,
+            orbitSpeed: 0,
+            rotationSpeed: 0,
+            moons: [],
+            type: "spacecraft"
+    }
     ];
     
     const createRings = (scene) => {
@@ -743,6 +748,16 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             }
         }
     });
+
+    // Voyager lens flare control
+    const voyager = scene.getMeshByName("Voyager");
+    if (voyager) {
+        if (isChecked) {
+            stopVoyagerLensFlareEffect(voyager);
+        } else {
+            createVoyagerLensFlareEffect(scene, voyager);
+        }
+    }
 });
     
         // Add outline on hover for planets
@@ -947,15 +962,15 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
                 targetPosition = pickResult.pickedPoint;
                 spaceship.lookAt(targetPosition);
                 particleSystem.start();
-    
+        
                 // Detach the ship from the planet when a new target is selected
                 detachShipFromPlanet(spaceship);
-    
+        
                 // Reset the hasArrived flag
                 hasArrived = false;
-    
-                // Check if the target is a planet, moon, or sun
-                if (pickResult.pickedMesh.name.startsWith("planet") || pickResult.pickedMesh.name.startsWith("moon") || pickResult.pickedMesh.name === "sun") {
+        
+                // Check if the target is a planet, moon, sun, or Voyager
+                if (pickResult.pickedMesh.name.startsWith("planet") || pickResult.pickedMesh.name.startsWith("moon") || pickResult.pickedMesh.name === "sun" || pickResult.pickedMesh.name === "Voyager") {
                     lastPickedMesh = pickResult.pickedMesh; // Store the last picked mesh
                     startUpdatingTargetPosition(pickResult.pickedMesh);
                 } else {
@@ -982,11 +997,11 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
         }
     
         // Update moveToTarget function to use onArrival callback
-        function moveToTarget(targetPos, arrivalCallback) {
-            targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
-            onArrivalCallback = arrivalCallback;
-            scene.registerBeforeRender(moveShip);
-        }
+        //function moveToTarget(targetPos, arrivalCallback) {
+           // targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
+           // onArrivalCallback = arrivalCallback;
+           // scene.registerBeforeRender(moveShip);
+        //}
         // Attach ship function that should disable blinking effect
         function attachShipToPlanet(ship, planet) {
             ship.parent = planet;
@@ -1011,9 +1026,9 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
                 const direction = targetPosition.subtract(spaceship.position).normalize();
                 const baseSpeed = 0.4; // Base speed of the ship
                 const adjustedSpeed = simulationSpeed > 1 ? baseSpeed * (1 + ((simulationSpeed - 1) / (9.1 - 1)) * (2.3 - 1)) : baseSpeed; // Adjust the speed only if simulation speed is above 1
-    
+        
                 spaceship.moveWithCollisions(direction.scale(adjustedSpeed)); // speed adjustment
-    
+        
                 // Use a precise distance check for arrival
                 const arrivalThreshold = 0.5; //threshold
                 if (BABYLON.Vector3.Distance(spaceship.position, targetPosition) < arrivalThreshold && !hasArrived) {
@@ -1024,25 +1039,14 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
                         particleSystem.stop();
                     }
                     if (lastPickedMesh) {
-                        attachShipToPlanet(spaceship, lastPickedMesh);
-                        setTimeout(() => {
-                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the planet
-                            lightUpPlanet(lastPickedMesh); // Light up the planet
-                            showPopup(lastPickedMesh);
-                        }, 1000); // Add a delay before focusing on the planet
-                    } else if (lastPickedMesh && lastPickedMesh.name.startsWith("moon")) {
-                        setTimeout(() => {
+                        if (lastPickedMesh.name.startsWith("planet") || lastPickedMesh.name.startsWith("moon") || lastPickedMesh.name === "sun" || lastPickedMesh.name === "Voyager") {
                             attachShipToPlanet(spaceship, lastPickedMesh);
-                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the moon
-                            lightUpPlanet(lastPickedMesh); // Light up the moon
-                            showPopup(lastPickedMesh);
-                        }, 1000); // Add a delay before focusing on the moon
-                    } else if (lastPickedMesh && lastPickedMesh.name === "sun") {
-                        setTimeout(() => {
-                            camera.setTarget(lastPickedMesh.position); // Set camera focus to the sun
-                            lightUpPlanet(lastPickedMesh); // Light up the sun
-                            showPopup(lastPickedMesh);
-                        }, 1000); // Add a delay before focusing on the sun
+                            setTimeout(() => {
+                                camera.setTarget(lastPickedMesh.position); // Set camera focus to the target
+                                lightUpPlanet(lastPickedMesh); // Light up the target
+                                showPopup(lastPickedMesh);
+                            }, 1000); // Add a delay before focusing on the target
+                        }
                     } else {
                         // Reset camera to sun if empty space is clicked - NOT really working, should remove in future updates
                         camera.setTarget(BABYLON.Vector3.Zero());
@@ -1113,13 +1117,6 @@ starParticles.start();
 // Lighting up planets on visit
     
     function lightUpPlanet(planet) {
-        if (currentLitPlanet) {
-            console.log(`Current lit planet: ${currentLitPlanet.name}`);
-        } else {
-            console.log(`No planet is currently lit.`);
-        }
-    
-        // If there is a currently lit planet, turn off its light
         if (currentLitPlanet && planetLight) {
             planetLight.dispose();
             planetLight = null;
@@ -1229,12 +1226,12 @@ starParticles.start();
             },
             "Titania": {
                 name: "Titania",
-                description: "The largest moon of Uranus and eighth-largest in the system. Discovered in 1787, it offers rugged terrain and potential for exploration.",
+                description: "Titania offers spectacular cliffs and canyons, perfect for any adventure-seeking alien. However, it seems the only thing that falls faster than rocks here are your expectations to find anything.",
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Titania2D.png"
             },
             "Oberon": {
                 name: "Oberon",
-                description: "The second-largest moon of Uranus, discovered alongside Titania. Offers a similar rugged landscape and exciting possibilities for exploration.",
+                description: "The second-largest moon of Uranus, Oberon, has a reddish tint and many impact craters. Humans named it after a fairy king. If you want to meet the king of space fairies, is Oberon the place?",
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Oberon2D.png"
             },
             "Miranda": {
@@ -1271,7 +1268,7 @@ starParticles.start();
             },
             "Makemake": {
                 name: "Makemake",
-                description: "Makemake is a dwarf planet and possibly the second brightest object in the Kuiper belt as seen from Earth. It has one known moon. Bright and intriguing, potential for alien studies.",
+                description: "Makemake is a dwarf planet located in the Kuiper Belt, known for its bright surface and the presence of methane ice. It is one of the largest known objects in the outer Solar System. Makemake was named after a fertility god, but all we found was ice! Do Earthlings think life springs from frozen methane?",
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Makemake2D.png"
             },
             "Eris": {
@@ -1281,7 +1278,7 @@ starParticles.start();
             },
             "Voyager": {
                 name: "Voyager",
-                description: "Voyager is a spacecraft that was launched by NASA to study the outer planets and beyond. It has now entered interstellar space, providing valuable data about the solar system's edge.",
+                description: "Voyager is a pioneering probe dispatched by the Earthlings. Having traversed beyond the influence of their star, it now navigates interstellar space, transmitting intelligence about the boundary regions of this star system. Its transmission offers a unique insight into the capabilities and curiosities of its creators.",
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Voyager2D.png"
             }
         };
@@ -1374,6 +1371,106 @@ starParticles.start();
             event.preventDefault();
         }
     };
+
+        // Voyager
+/////////
+async function loadVoyagerModel(scene) {
+
+    try {
+        const voyagerModel = await BABYLON.SceneLoader.ImportMeshAsync("", "https://raw.githubusercontent.com/razvanpf/Images/main/Voyager.glb", "", scene);
+        const voyagerMesh = voyagerModel.meshes[0];
+
+        if (!voyagerMesh) {
+            console.error("Voyager mesh not found!");
+            return;
+        }
+
+        // Scale and position of the model
+        voyagerMesh.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
+        voyagerMesh.position = new BABYLON.Vector3(200, 0, 0);
+
+        // Apply lights to all child meshes of the Voyager model
+        voyagerMesh.getChildMeshes().forEach((childMesh, index) => {
+            const light = new BABYLON.PointLight(`light_voyager_${index}`, new BABYLON.Vector3(0, 0, 0), scene);
+            light.parent = childMesh; // Attach the light to the child mesh
+            light.intensity = 50; // Adjust intensity as needed
+            light.diffuse = new BABYLON.Color3(1, 1, 1); // White light
+            light.specular = new BABYLON.Color3(1, 1, 1); // Specular color
+            light.includedOnlyMeshes = [childMesh]; // Only affect this child mesh
+        });
+
+        // Ensure the Voyager mesh is pickable and name it
+        voyagerMesh.isPickable = true;
+        voyagerMesh.name = "Voyager";
+
+        // Ensure the parent mesh has an action manager
+        voyagerMesh.actionManager = new BABYLON.ActionManager(scene);
+
+        // Centralize hover actions on the parent mesh
+        voyagerMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
+            outlineVoyager(voyagerMesh, true);
+            scene.getEngine().getRenderingCanvas().style.cursor = 'pointer';
+        }));
+
+        voyagerMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
+            outlineVoyager(voyagerMesh, false);
+            scene.getEngine().getRenderingCanvas().style.cursor = 'default';
+        }));
+
+        voyagerMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, () => {
+            moveToTarget(voyagerMesh.position, () => {
+                camera.setTarget(voyagerMesh.position);
+                showPopup(voyagerMesh);
+            });
+        }));
+
+        // Ensure child meshes reference the parent mesh and are pickable
+        voyagerMesh.getChildMeshes().forEach((childMesh, index) => {
+            childMesh.name = `Voyager_Child_${index}`;
+            childMesh.isPickable = true;
+            childMesh.parentMesh = voyagerMesh; // Reference to parent mesh
+
+            // Make child meshes trigger parent's action manager events
+            childMesh.actionManager = new BABYLON.ActionManager(scene);
+            childMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
+                voyagerMesh.actionManager.processTrigger(BABYLON.ActionManager.OnPointerOverTrigger, childMesh);
+            }));
+            childMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
+                voyagerMesh.actionManager.processTrigger(BABYLON.ActionManager.OnPointerOutTrigger, childMesh);
+            }));
+            childMesh.actionManager.registerAction(new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPickTrigger, () => {
+                voyagerMesh.actionManager.processTrigger(BABYLON.ActionManager.OnPickTrigger, childMesh);
+            }));
+        });
+
+        return voyagerMesh;
+    } catch (error) {
+        console.error("Failed to load Voyager model:", error);
+    }
+}
+
+function outlineVoyager(voyagerMesh, outline) {
+    voyagerMesh.getChildMeshes().forEach(childMesh => {
+        childMesh.renderOutline = outline;
+        childMesh.outlineWidth = 0.1;
+        childMesh.outlineColor = BABYLON.Color3.White();
+    });
+}
+
+canvas.addEventListener("mousedown", function (evt) {
+    if (evt.button === 0) { // Left mouse button
+        const pickResult = scene.pick(evt.clientX, evt.clientY);
+        if (pickResult.hit) {
+            const pickedMesh = pickResult.pickedMesh;
+            const parentMesh = pickedMesh.parentMesh || pickedMesh;
+            if (parentMesh.name === "Voyager") {
+                moveToTarget(parentMesh.position, () => {
+                    camera.setTarget(parentMesh.position);
+                    showPopup(parentMesh);
+                });
+            }}
+    }
+});
     
     // Add event listeners to disable right-click drag
     canvas.addEventListener("mousedown", onRightMouseDown);
@@ -1395,6 +1492,14 @@ starParticles.start();
     }).catch((error) => {
         console.error("Failed to load satellites:", error);
     });
+
+    //Load Voyager
+    loadVoyagerModel(scene).then(voyagerMesh => {
+        createVoyagerLensFlareEffect(scene, voyagerMesh); // Initialize lens flare effect for Voyager
+    }).catch(error => {
+        console.error("Error loading Voyager model:", error);
+    });
+
     
     return scene;
     };
@@ -1805,7 +1910,7 @@ function createLensFlareEffect(scene, mesh) {
         const lensFlareSystem = new BABYLON.LensFlareSystem(`lensFlareSystem_${mesh.name}`, mesh, scene);
 
         // Create a single lens flare
-        const lensFlare = new BABYLON.LensFlare(0.01, 1.0, new BABYLON.Color3(1, 1, 1), "https://raw.githubusercontent.com/razvanpf/Images/main/starburst.jpg", lensFlareSystem);
+        const lensFlare = new BABYLON.LensFlare(0.025, 1.0, new BABYLON.Color3(1, 1, 1), "https://raw.githubusercontent.com/razvanpf/Images/main/starburst.jpg", lensFlareSystem);
 
         // Adjust the position to be above the north pole
         lensFlareSystem.position = mesh.position.add(new BABYLON.Vector3(0, mesh.scaling.y * 2, 0));
@@ -1848,10 +1953,56 @@ function stopLensFlareEffect(mesh) {
 // Add lens flare effects to dwarf planets
 function addLensFlareEffectsToDwarfPlanets(scene) {
     celestialBodies.forEach(body => {
-        if (body.data.name === "Ceres" || body.data.name === "Pluto" || body.data.name === "Haumea" || body.data.name === "Makemake" || body.data.name === "Eris") {
+        if (body.data.name === "Ceres" || body.data.name === "Pluto" || body.data.name === "Haumea" || body.data.name === "Makemake" || body.data.name === "Eris" || body.data.name === "Voyager") {
             createLensFlareEffect(scene, body.mesh);
         }
     });
+}
+
+// Create a lens flare effect for Voyager
+function createVoyagerLensFlareEffect(scene, mesh) {
+    if (!mesh.lensFlareSystem) {
+        const lensFlareSystem = new BABYLON.LensFlareSystem(`lensFlareSystem_${mesh.name}`, mesh, scene);
+
+        // Create a single lens flare
+        const lensFlare = new BABYLON.LensFlare(0.025, 1.0, new BABYLON.Color3(1, 1, 1), "https://raw.githubusercontent.com/razvanpf/Images/main/starburst.jpg", lensFlareSystem);
+
+        // Adjust the position to be above the mesh
+        lensFlareSystem.position = mesh.position.add(new BABYLON.Vector3(0, mesh.scaling.y * 2, 0));
+
+        // Start the lens flare effect
+        const startLensFlare = () => {
+            if (!mesh.blinking) return;
+            lensFlareSystem.isEnabled = true;
+            setTimeout(() => {
+                lensFlareSystem.isEnabled = false;
+            }, 1000); // Stop after 1 second
+        };
+
+        // Repeat the lens flare every 5 seconds
+        mesh.blinking = true;
+        const interval = setInterval(() => {
+            if (mesh.blinking) {
+                startLensFlare();
+            }
+        }, 5000);
+
+        mesh.lensFlareSystem = lensFlareSystem;
+        mesh.lensFlareInterval = interval;
+    }
+}
+
+// Stop the lens flare effect for Voyager
+function stopVoyagerLensFlareEffect(mesh) {
+    if (mesh && mesh.lensFlareSystem && mesh.lensFlareInterval) {
+        clearInterval(mesh.lensFlareInterval);
+        mesh.lensFlareSystem.dispose();
+        mesh.lensFlareSystem = null;
+        mesh.lensFlareInterval = null;
+        mesh.blinking = false;
+    } else {
+        console.warn(`Lens flare system for ${mesh ? mesh.name : 'unknown mesh'} is already disposed or not created.`);
+    }
 }
 
 // Disable blinking tooltip
@@ -1876,4 +2027,3 @@ infoIcon.addEventListener('click', function (event) {
 closeBtn.addEventListener('click', function () {
     tooltip.classList.remove('show');
 });
-
