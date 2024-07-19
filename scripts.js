@@ -616,15 +616,7 @@ const createScene = function () {
             moons: [],
             type: "dwarfPlanet"
         },
-        {
-            name: "Voyager",
-            size: 0.5,
-            distance: 15,
-            orbitSpeed: 0,
-            rotationSpeed: 0,
-            moons: [],
-            type: "spacecraft"
-    }
+    
     ];
     
     const createRings = (scene) => {
