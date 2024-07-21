@@ -3,6 +3,7 @@ const canvas = document.getElementById("renderCanvas");
 const engine = new BABYLON.Engine(canvas, true);
 const updateInterval = 100; // Update every 100 milliseconds
 const baseSpeed = 0.01;
+const overlay = document.getElementById("overlay");
 
 // Declared Variables - LETs
 let hasArrived = false; // Flag to track if the spaceship has arrived
@@ -20,6 +21,70 @@ let baseTime = Date.now();
 let lastPickedMesh = null;
 let orbitMeshes = [];
 let simulationSpeed = 1;
+
+overlay.style.display = "block"; // Show the overlay
+
+    // Welcome Popup
+    window.addEventListener("load", function () {
+        // Display the welcome popup
+        const welcomePopup = document.getElementById("welcomePopup");
+        const welcomeBtn = document.getElementById("welcomeBtn");
+    
+        welcomePopup.style.display = "block";
+    
+        // Apply blur to the background
+        const mainContent = document.getElementById("renderCanvas");
+        mainContent.style.filter = "blur(5px)";
+        sidebar.style.filter = "blur(5px)";
+        cameraIcon.style.filter = "blur(5px)";
+    
+        // Close the popup and remove blur
+        welcomeBtn.addEventListener("click", function () {
+            welcomePopup.style.display = "none";
+            mainContent.style.filter = "none";
+            sidebar.style.filter = "none";
+            cameraIcon.style.filter = "none";
+            overlay.style.display = "none"; // Hide the overlay
+
+            // Expand the sidebar after 1 second
+            setTimeout(() => {
+                sidebar.classList.remove("collapsed");
+            }, 500);
+        });
+    });
+
+        // Mesh name to planet name for later use
+        const meshNameToPlanetName = {
+            "planet0": "Mercury",
+            "planet1": "Venus",
+            "planet2": "Earth",
+            "planet3": "Mars",
+            "planet4": "Jupiter",
+            "planet5": "Saturn",
+            "planet6": "Uranus",
+            "planet7": "Neptune",
+            "planet8": "Ceres",
+            "planet9": "Pluto",
+            "planet10": "Haumea",
+            "planet11": "Makemake",
+            "planet12": "Eris",
+            "sun": "Sun",
+            "moon0_0": "Moon",
+            "moon2_0": "Moon",
+            "moon3_0": "Phobos",
+            "moon3_1": "Deimos",
+            "moon4_0": "Io",
+            "moon4_1": "Europa",
+            "moon4_2": "Ganymede",
+            "moon4_3": "Callisto",
+            "moon5_0": "Titan",
+            "moon6_0": "Titania",
+            "moon6_1": "Oberon",
+            "moon6_2": "Miranda",
+            "moon7_0": "Triton",
+            "moon9_0": "Charon",
+            "Voyager": "Voyager"
+        };
 
 function updateSimulationSpeed(sliderValue) {
     // Map slider value (1 to 1000) to simulation speed (0.1 to 9.1)
@@ -416,6 +481,7 @@ const createScene = function () {
 
     // Move the ship to the target position
     function moveToTarget(targetPos, arrivalCallback) {
+        console.log("moveToTarget called with targetPos:", targetPos);
         targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
         onArrivalCallback = arrivalCallback;
         scene.registerBeforeRender(moveShip);
@@ -463,7 +529,8 @@ const createScene = function () {
             orbitSpeed: 0.0001,
             rotationSpeed: 0.02, 
             moons: [],
-            type: "planet" 
+            type: "planet", 
+            visited: false
         },
         {
             name: "Venus",
@@ -485,7 +552,7 @@ const createScene = function () {
             moons: [
                 { name: "Moon", size: 0.3, distance: 3, orbitSpeed: 0.4, rotationSpeed: 0.4, texture: "https://raw.githubusercontent.com/razvanpf/Images/main/Moon3D.jpg", type: "moon" } 
             ],
-            type: "planet" 
+            type: "planet",
         },
         {
             name: "Mars",
@@ -616,7 +683,6 @@ const createScene = function () {
             moons: [],
             type: "dwarfPlanet"
         },
-    
     ];
     
     const createRings = (scene) => {
@@ -677,7 +743,9 @@ const toggleOrbitsVisibility = () => {
     
         // Set initial position of the planet
         planet.position = new BABYLON.Vector3(data.distance, 0, 0);
+        data.visited = false; // Ensure the visited flag is set during initialization
         celestialBodies.push({ mesh: planet, data, angle: 0 });
+        console.log("Created celestial body:", { mesh: planet, data });
     
         // Flip the planet upside down
         planet.rotation.x = Math.PI; // Flipping the planet
@@ -770,6 +838,7 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             moon.material = moonMaterial;
             moonMaterial.specularColor = new BABYLON.Color3(0, 0, 0); // Reduce reflectivity
             moon.position = new BABYLON.Vector3(planet.position.x + moonData.distance, 0, planet.position.z);
+            moonData.visited = false; // Ensure the visited flag is set for moons
             moons.push({ mesh: moon, data: moonData, parent: planet, angle: Math.random() * Math.PI * 2 }); // Initialize with random angle
     
             // Set initial position of the moon
@@ -857,6 +926,53 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             }
         });
     });
+
+// Initialize sidebar
+function initializeSidebar() {
+    const sidebar = document.getElementById("sidebar");
+    const discoveryList = document.getElementById("discoveryList");
+    discoveryList.innerHTML = ''; // Clear any existing list items
+
+    // Manually add the Sun as a discovered item
+    const sunListItem = document.createElement("li");
+    sunListItem.id = "sidebar-Sun";
+    sunListItem.className = "discovered discovery-item";
+    sunListItem.innerHTML = `
+        <span>Sun</span>
+        <span class="checkmark"> ✔</span>
+    `;
+    discoveryList.appendChild(sunListItem);
+
+    // Loop through all celestial bodies
+    celestialData.forEach(body => {
+        const planetName = meshNameToPlanetName[body.name] || body.name;
+        addListItem(planetName, discoveryList);
+
+        // Loop through moons if they exist
+        if (body.moons && body.moons.length > 0) {
+            body.moons.forEach(moon => {
+                const moonName = moon.name;
+                addListItem(moonName, discoveryList);
+            });
+        }
+    });
+
+    // Add Voyager to the sidebar
+    addListItem("Voyager", discoveryList);
+}
+
+// Helper function to add a list item to the sidebar
+function addListItem(name, parentElement) {
+    const listItem = document.createElement("li");
+    listItem.id = `sidebar-${name.replace(/\s+/g, '-')}`;
+    listItem.className = "undiscovered";
+    listItem.innerHTML = `
+        <span>Undiscovered Body</span>
+        <i class="fa fa-check-circle" style="display: none; color: green;"></i>
+    `;
+    parentElement.appendChild(listItem);
+}
+
     
     // Spaceship
     let spaceship;
@@ -988,20 +1104,24 @@ document.getElementById("disableFlashingCheckbox").addEventListener("change", fu
             }
         }
     
-        // Update moveToTarget function to use onArrival callback
-        //function moveToTarget(targetPos, arrivalCallback) {
-           // targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
-           // onArrivalCallback = arrivalCallback;
-           // scene.registerBeforeRender(moveShip);
-        //}
-        // Attach ship function that should disable blinking effect
-        function attachShipToPlanet(ship, planet) {
-            ship.parent = planet;
-            ship.position = BABYLON.Vector3.Zero();
-            planet.visited = true; // Mark the planet as visited
-        }
+// Attach ship to planet function
+function attachShipToPlanet(ship, planet) {
+    ship.parent = planet;
+    ship.position = BABYLON.Vector3.Zero();
 
-    
+    // Ensure planet.data exists
+    const planetData = celestialBodies.find(body => body.mesh === planet)?.data;
+    if (planetData) {
+        planetData.visited = true; // Mark the planet as visited
+
+        const planetName = meshNameToPlanetName[planet.name] || planet.name;
+        console.log("Planet name:", planetName); // Debugging log
+        updateSidebar(planetName);
+    } else {
+        console.error("Planet data is undefined for:", planet.name);
+    }
+}
+
         // Detach ship function
         function detachShipFromPlanet(ship) {
             if (ship.parent) {
@@ -1126,6 +1246,34 @@ starParticles.start();
         currentLitPlanet = planet;
     }
     
+// Mark a celestial body as discovered in the sidebar
+function markAsDiscovered(name) {
+    console.log("Marking as discovered:", name); // Debugging log
+    const listItem = document.getElementById(`sidebar-${name.replace(/\s+/g, '-')}`);
+    if (listItem) {
+        listItem.classList.remove("undiscovered");
+        listItem.classList.add("discovered");
+        listItem.querySelector("span").textContent = name;
+
+        // Add checkmark span if it doesn't exist
+        if (!listItem.querySelector(".checkmark")) {
+            const checkmarkSpan = document.createElement("span");
+            checkmarkSpan.classList.add("checkmark");
+            checkmarkSpan.textContent = " ✔";
+            listItem.appendChild(checkmarkSpan);
+        }
+    } else {
+        console.error("List item not found for:", name);
+    }
+}
+
+// Update the sidebar
+function updateSidebar(discoveredBodyName = null) {
+    if (discoveredBodyName) {
+        markAsDiscovered(discoveredBodyName);
+    }
+}
+
     function showPopup(mesh) {
         const popup = document.getElementById("popup");
         popup.style.display = "block";
@@ -1274,41 +1422,10 @@ starParticles.start();
                 image: "https://raw.githubusercontent.com/razvanpf/Images/main/2D%20Solar%20System%20Textures/Voyager2D.png"
             }
         };
-        // Mesh name to planet name for later use
-        const meshNameToPlanetName = {
-            "planet0": "Mercury",
-            "planet1": "Venus",
-            "planet2": "Earth",
-            "planet3": "Mars",
-            "planet4": "Jupiter",
-            "planet5": "Saturn",
-            "planet6": "Uranus",
-            "planet7": "Neptune",
-            "planet8": "Ceres",
-            "planet9": "Pluto",
-            "planet10": "Haumea",
-            "planet11": "Makemake",
-            "planet12": "Eris",
-            "sun": "Sun",
-            "moon0_0": "Moon",
-            "moon2_0": "Moon",
-            "moon3_0": "Phobos",
-            "moon3_1": "Deimos",
-            "moon4_0": "Io",
-            "moon4_1": "Europa",
-            "moon4_2": "Ganymede",
-            "moon4_3": "Callisto",
-            "moon5_0": "Titan",
-            "moon6_0": "Titania",
-            "moon6_1": "Oberon",
-            "moon6_2": "Miranda",
-            "moon7_0": "Triton",
-            "moon9_0": "Charon",
-            "Voyager": "Voyager"
-        };
 
         const planetName = meshNameToPlanetName[mesh.name];
         const planetInfo = planetDescriptions[planetName] || {};
+        markAsDiscovered(planetName); // Mark the planet as discovered in the sidebar
         
         //Popup info
         const info = `
@@ -1473,6 +1590,19 @@ canvas.addEventListener("mousedown", function (evt) {
     createRings(scene);
     toggleOrbitsVisibility();
 
+    //Sidebar
+    document.getElementById('toggleSidebarBtn').addEventListener('click', function() {
+        const sidebar = document.getElementById('sidebar');
+        if (sidebar.classList.contains('collapsed')) {
+            sidebar.classList.remove('collapsed');
+            this.innerHTML = '&lt;';  // Change to collapse icon
+        } else {
+            sidebar.classList.add('collapsed');
+            this.innerHTML = '&gt;';  // Change to expand icon
+        }
+    });
+    initializeSidebar();
+
     // Load and add satellites around Earth
     loadSatellites(scene).then((satellites) => {
         const earthMesh = celestialBodies.find(body => body.data.name === "Earth").mesh;
@@ -1492,7 +1622,6 @@ canvas.addEventListener("mousedown", function (evt) {
         console.error("Error loading Voyager model:", error);
     });
 
-    
     return scene;
     };
     
@@ -1559,25 +1688,6 @@ canvas.addEventListener("mousedown", function (evt) {
         scene.deltaTime = deltaTime;
     
         scene.render();
-    });
-    
-    // Welcome Popup
-    window.addEventListener("load", function () {
-        // Display the welcome popup
-        const welcomePopup = document.getElementById("welcomePopup");
-        const welcomeBtn = document.getElementById("welcomeBtn");
-    
-        welcomePopup.style.display = "block";
-    
-        // Apply blur to the background
-        const mainContent = document.getElementById("renderCanvas");
-        mainContent.style.filter = "blur(5px)";
-    
-        // Close the popup and remove blur
-        welcomeBtn.addEventListener("click", function () {
-            welcomePopup.style.display = "none";
-            mainContent.style.filter = "none";
-        });
     });
     
     // Start updating target position
@@ -2019,3 +2129,47 @@ infoIcon.addEventListener('click', function (event) {
 closeBtn.addEventListener('click', function () {
     tooltip.classList.remove('show');
 });
+
+// Screenshot
+const camera = scene.activeCamera; // Or however you reference your camera
+const cameraIcon = document.getElementById('cameraIcon');
+
+// Hide UI elements during screenshot
+function hideUIElements() {
+    document.getElementById('versionText').style.display = 'none';
+    document.getElementById('speedSliderContainer').style.display = 'none';
+    document.getElementById('sidebar').style.display = 'none';
+    cameraIcon.style.pointerEvents = 'none'; // Disable interactions
+    cameraIcon.style.opacity = '0.5'; // Visually indicate it's disabled
+}
+
+// Show UI elements after screenshot
+function showUIElements() {
+    document.getElementById('versionText').style.display = 'block';
+    document.getElementById('speedSliderContainer').style.display = 'flex';
+    document.getElementById('sidebar').style.display = 'block';
+    cameraIcon.style.pointerEvents = 'auto'; // Enable interactions
+    cameraIcon.style.opacity = '1'; // Reset opacity
+}
+
+// Function to take a screenshot
+function takeScreenshot() {
+    hideUIElements();
+
+    setTimeout(() => {
+        BABYLON.Tools.CreateScreenshotUsingRenderTarget(engine, camera, { precision: 1.0 }, function(data) {
+            // Create a temporary link element
+            const link = document.createElement('a');
+            link.href = data;
+            link.download = 'screenshot.png';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showUIElements();
+        });
+    }, 100);
+}
+
+// Add event listener to the camera icon
+document.getElementById('cameraIcon').addEventListener('click', takeScreenshot);

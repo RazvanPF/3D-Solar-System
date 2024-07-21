@@ -204,11 +204,122 @@
             color: white;
             font-family: Arial, sans-serif;
         }
+/* SIDEBAR */
+
+#sidebar {
+    width: 200px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 10px;
+    margin-left: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    position: fixed;
+    top: 50%;
+    left: 0;
+    transform: translateY(-50%);
+    border-radius: 5px;
+    height: auto;
+    overflow: hidden;
+}
+
+/* Collapsed sidebar */
+#sidebar.collapsed {
+    left: -180px; /* Move sidebar off screen */
+    padding: 0;
+}
+
+/* Button when sidebar is collapsed */
+#sidebar.collapsed #toggleSidebarBtn {
+    display: block;
+    text-align: center;
+}
+
+/* List styling */
+.discoveries {
+    padding: 0;
+    margin: 0;
+}
+/* Remove Bullet Points */
+.undiscovered {
+    list-style-type: none;
+}
+
+/* Remove bullet points */
+#sidebar ul {
+    list-style-type: none;
+    padding-left: 0;
+    text-align:left;
+}
+
+.discoveries li {
+    text-align: left;
+    margin: 5px 0;
+}
+
+/* Button styling */
+#toggleSidebarBtn {
+    background-color: transparent;
+    color: white;
+    border: 1px solid white;
+    cursor: pointer;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    right: 0px;
+    height: 30px;
+    width: 30px;
+    text-align: center;
+    font-size: 20px;
+    border-radius: 5px;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.8); /* Ensure button is visible on collapse */
+    padding: 0px;
+    margin-right: 5px;
+}
+.checkmark {
+    color: green;
+    font-weight: bold;
+    position: absolute;
+    right: 55px; 
+}
+#cameraIcon {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    cursor: pointer;
+    transition: transform 0.3s ease-in-out;
+}
+
+#cameraIcon:hover {
+    transform: scale(1.2);
+}
+#cameraIcon:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+#overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5); /* Semi-transparent background */
+    z-index: 999; /* Just below the welcome popup */
+}
+
     </style>
 </head>
 <body>
     <canvas id="renderCanvas"></canvas>
-    <div id="versionText">Version Beta 0.3</div>
+    <div id="versionText">Version Beta 0.4</div>
     <div id="popup">
         <div id="popupContent">
             <!-- Existing content for the popup goes here -->
@@ -236,6 +347,12 @@
             <button id="welcomeBtn" disabled>I got it!</button>
         </div>
     </div>
+    <div id="overlay"></div>
+    <div id="sidebar" class="collapsed">
+        <h2>Discoveries</h2>
+        <ul class="discoveries" id="discoveryList"></ul>
+        <button id="toggleSidebarBtn">&lt;</button>
+    </div>
     <div id="speedSliderContainer" style="display: none;">
         <input type="range" id="speedSlider" min="1" max="1000" value="100">
         <div id="speedDisplay">1.0x</div>
@@ -254,6 +371,8 @@
         <span id="closeTooltipBtn" class="close-btn">X</span>
         <span class="tooltip-text">The blinking effect helps highlight small interactable bodies that are more difficult to see. Disabling this option will stop Dwarf Planet and spacecraft lens flare effect.</span>
     </div>
+    <img id="cameraIcon" src="https://raw.githubusercontent.com/razvanpf/Images/main/cameraicon.png" alt="Camera Icon">
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
     <script src="scripts.js"></script>
