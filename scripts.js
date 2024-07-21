@@ -22,7 +22,7 @@ let lastPickedMesh = null;
 let orbitMeshes = [];
 let simulationSpeed = 1;
 
-overlay.style.display = "block"; // Show the overlay
+        overlay.style.display = "block"; // Show the overlay
 
     // Welcome Popup
     window.addEventListener("load", function () {
@@ -383,7 +383,7 @@ const createScene = function () {
     async function createMainAsteroidBelt(scene, progressCallback) {
         const innerRadius = 55;
         const outerRadius = 60; // Reduced outer radius to keep the belt between Mars and Jupiter
-        const numAsteroids = 200; // Increased number of asteroids
+        const numAsteroids = 150; // Increased number of asteroids
         const yRange = 5; // Reduced thickness for a more ring-like shape
 
         mainAsteroids = await createAsteroidBelt(scene, innerRadius, outerRadius, numAsteroids, yRange, progressCallback);
@@ -394,7 +394,7 @@ const createScene = function () {
     async function createKuiperBelt(scene, progressCallback) {
         const innerRadius = 150;
         const outerRadius = 180; // Outer radius
-        const numAsteroids = 300; // Number of asteroids
+        const numAsteroids = 200; // Number of asteroids
         const yRange = 5; // For thickness
 
         kuiperAsteroids = await createAsteroidBelt(scene, innerRadius, outerRadius, numAsteroids, yRange, progressCallback);
@@ -426,7 +426,7 @@ const createScene = function () {
 
     // Create the asteroid belts and update the progress bar
     async function createAsteroidBelts(scene) {
-        const totalAsteroids = 500; // Total number of asteroids in both belts !IMPORTANT FOR LOADING PROGRESS BAR TIME, ADJUST IF ASTEROID NUMBERS WERE CHANGED!!!
+        const totalAsteroids = 350; // Total number of asteroids in both belts !IMPORTANT FOR LOADING PROGRESS BAR TIME, ADJUST IF ASTEROID NUMBERS WERE CHANGED!!!
         let loadedAsteroids = 0;
 
         const progressCallback = () => {
