@@ -1,9 +1,10 @@
 // Declared Variables - CONSTANTS
 const canvas = document.getElementById("renderCanvas");
-const engine = new BABYLON.Engine(canvas, true);
+const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true, antialias: true });
 const updateInterval = 100; // Update every 100 milliseconds
 const baseSpeed = 0.01;
 const overlay = document.getElementById("overlay");
+engine.setHardwareScalingLevel(1 / window.devicePixelRatio);
 
 // Declared Variables - LETs
 let hasArrived = false; // Flag to track if the spaceship has arrived
@@ -22,7 +23,7 @@ let lastPickedMesh = null;
 let orbitMeshes = [];
 let simulationSpeed = 1;
 
-        overlay.style.display = "block"; // Show the overlay
+    overlay.style.display = "block"; // Show the overlay
 
     // Welcome Popup
     window.addEventListener("load", function () {
@@ -481,7 +482,6 @@ const createScene = function () {
 
     // Move the ship to the target position
     function moveToTarget(targetPos, arrivalCallback) {
-        console.log("moveToTarget called with targetPos:", targetPos);
         targetPosition = targetPos.clone(); // Clone to avoid modifying the original target position
         onArrivalCallback = arrivalCallback;
         scene.registerBeforeRender(moveShip);
@@ -745,7 +745,6 @@ const toggleOrbitsVisibility = () => {
         planet.position = new BABYLON.Vector3(data.distance, 0, 0);
         data.visited = false; // Ensure the visited flag is set during initialization
         celestialBodies.push({ mesh: planet, data, angle: 0 });
-        console.log("Created celestial body:", { mesh: planet, data });
     
         // Flip the planet upside down
         planet.rotation.x = Math.PI; // Flipping the planet
@@ -1115,7 +1114,6 @@ function attachShipToPlanet(ship, planet) {
         planetData.visited = true; // Mark the planet as visited
 
         const planetName = meshNameToPlanetName[planet.name] || planet.name;
-        console.log("Planet name:", planetName); // Debugging log
         updateSidebar(planetName);
     } else {
         console.error("Planet data is undefined for:", planet.name);
@@ -1248,7 +1246,6 @@ starParticles.start();
     
 // Mark a celestial body as discovered in the sidebar
 function markAsDiscovered(name) {
-    console.log("Marking as discovered:", name); // Debugging log
     const listItem = document.getElementById(`sidebar-${name.replace(/\s+/g, '-')}`);
     if (listItem) {
         listItem.classList.remove("undiscovered");
