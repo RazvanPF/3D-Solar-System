@@ -1,0 +1,24 @@
+https://private-user-images.githubusercontent.com/107612362/354886487-63a99269-5832-4d18-a51a-3dd08ced2aa7.png?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3MjQ4MzU3MTAsIm5iZiI6MTcyNDgzNTQxMCwicGF0aCI6Ii8xMDc2MTIzNjIvMzU0ODg2NDg3LTYzYTk5MjY5LTU4MzItNGQxOC1hNTFhLTNkZDA4Y2VkMmFhNy5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjQwODI4JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI0MDgyOFQwODU2NTBaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT1mNmExZjNlYjc1NzI2Y2I5ZDlmYWY5NmUxNzE2NDQyMzM4MDEzOTExMzY0MmY1MTI3YThlOTk0ZGE0MzZkYWMzJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCZhY3Rvcl9pZD0wJmtleV9pZD0wJnJlcG9faWQ9MCJ9._shvJoC-U-JvkL3OP6-M9W46MposbzhGnJxTU2qN6as
+
+Welcome to the 3D Solar System project! This simulation uses Babylon.js to render a 3D representation of our solar system complete with planets, moons, asteroids, and dynamic events. Users can explore the system by navigating the flying saucer and interacting with celestial bodies.
+
+NOTE**:
+This is the standalone version of the SOL solar system, which is part of the STAR CLUSTER (WIP) project. The STAR CLUSTER project includes multiple solar systems, besides SOL. For more information about it, visit https://github.com/RazvanPF/Star-Cluster.
+
+Features:
+- Interactive Solar System: Navigate through a realistic solar system with planets, moons, and other celestial bodies.
+- Dynamic Events: Experience dynamic solar flares and comets passing by, with realistic effects and animations.
+- Planetary Information Popups: Click on planets and moons to discover detailed information about each celestial body, including age, mass, atmosphere, diameter, and gravity.
+- Asteroid Belts: View and animate two asteroid belts—between Mars and Jupiter and the Kuiper Belt beyond Neptune.
+- Artificial Satellites: Launch and animate satellites orbiting Earth.
+- Voyager Probe: Locate and interact with the Voyager spacecraft, featuring a unique lens flare effect.
+- Lens Flare Effects: Dwarf planets and Voyager feature blinking lights to simulate lens flare effects.
+- Adjustable Simulation Speed: Use the slider to adjust the simulation speed for a faster or slower exploration experience.
+- Collision Detection: Enabled collision detection for realistic interactions between objects.
+- Sidebar Discovery List: Track discovered celestial bodies in the sidebar, automatically updated as you explore.
+- Comprehensive UI Controls: Interactive UI for speed adjustment, simulation controls, and navigation.
+- Background with Twinkling Stars: Immerse yourself in a starry background with a realistic twinkling effect.
+- Sun Rays and Glow Effects: Experience enhanced visuals with glow layers and volumetric light scattering effects around the sun.
+- Planetary Orbits: View planetary orbits and toggle their visibility for a clear understanding of each planet's path.
+- Welcome Popup: Initial overlay and welcome popup with navigation instructions for new users.
+- Screenshot: Screenshot functionality that hides the UI elements and allows you to save a snapshot of the system from your desired angle and position.
